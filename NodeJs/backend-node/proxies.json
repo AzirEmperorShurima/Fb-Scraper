@@ -1,0 +1,6 @@
+[
+  // Thêm danh sách proxy của bạn vào đây (nếu dùng xoay vòng theo list)
+  // Ví dụ:
+  // "http://username:password@ip1:port",
+  // "http://username:password@ip2:port"
+]

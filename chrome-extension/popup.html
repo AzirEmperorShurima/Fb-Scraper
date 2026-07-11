@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f111a;
+      --bg-card: rgba(26, 30, 41, 0.7);
+      --bg-input: #151822;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #8b5cf6;
+      --success: #10b981;
+      --success-hover: #059669;
+      --danger: #ef4444;
+      --border: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.12);
+    }
+    
+    body {
+      width: 400px;
+      margin: 0;
+      padding: 20px;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 50% -20%, #2b1f4d 0%, var(--bg-dark) 40%);
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-box {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+      padding: 10px;
+      border-radius: 12px;
+      color: #a78bfa;
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-text h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #c4b5fd, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-text p {
+      margin: 2px 0 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 14px;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-main);
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      background-color: rgba(99, 102, 241, 0.05);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.8) sepia(1) hue-rotate(180deg) saturate(200%);
+      cursor: pointer;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: white;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+      filter: brightness(1.1);
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--success), #059669);
+      color: white;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+      margin-top: 12px;
+    }
+    
+    .btn-success:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Console Section */
+    .console-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .console-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background-color: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    #console {
+      height: 140px;
+      overflow-y: auto;
+      background-color: #030408;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #4ade80;
+      white-space: pre-wrap;
+      margin-bottom: 16px;
+      box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 10px;
+    }
+
+    #statusText {
+      font-weight: 700;
+      color: #818cf8;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Tabs */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #c4b5fd;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Campaign List */
+    .campaign-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+    .campaign-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .campaign-info h4 {
+      margin: 0 0 4px 0;
+      font-size: 13px;
+      color: var(--text-main);
+    }
+    .campaign-info p {
+      margin: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .btn-run-campaign {
+      padding: 6px 12px;
+      font-size: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-run-campaign:hover {
+      background: var(--primary-hover);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-box">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+      </svg>
+    </div>
+    <div class="header-text" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <div>
+        <h2>FB Group Scraper</h2>
+        <p>Data Extraction Pro</p>
+      </div>
+      <div id="userInfoBlock" class="hidden" style="display: flex; align-items: center; gap: 8px; background: rgba(99, 102, 241, 0.1); padding: 4px 8px 4px 12px; border-radius: 20px; border: 1px solid rgba(99, 102, 241, 0.2);">
+        <div style="width: 6px; height: 6px; border-radius: 50%; background-color: var(--success); box-shadow: 0 0 6px var(--success);"></div>
+        <span id="userEmailDisplay" style="font-size: 11px; font-weight: 600; color: #c4b5fd; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+        <button id="logoutBtn" style="width: auto; padding: 4px; background: transparent; color: #fca5a5; border: none; margin: 0;" title="Đăng xuất">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pageInfoSection" class="card hidden" style="margin-bottom: 16px; display: flex; align-items: center; gap: 12px; padding: 12px;">
+    <div id="pageAvatar" style="width: 48px; height: 48px; border-radius: 50%; background-color: var(--primary); background-size: cover; background-position: center; border: 2px solid var(--accent); flex-shrink: 0;"></div>
+    <div style="flex-grow: 1; overflow: hidden;">
+      <div id="pageType" style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 2px;">Type</div>
+      <div id="pageName" style="font-size: 14px; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Target Name</div>
+      <a id="pageLink" href="#" target="_blank" style="font-size: 11px; color: var(--text-muted); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-top: 2px;">Link</a>
+    </div>
+  </div>
+
+  <div id="authSection" class="card">
+    <div style="text-align: center; margin-bottom: 16px;">
+      <h3 style="margin: 0 0 4px 0; color: var(--text-main); font-size: 16px;">Xác thực tài khoản</h3>
+      <p style="margin: 0; color: var(--text-muted); font-size: 12px;">Đăng nhập để đồng bộ Dashboard</p>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="Nhập email...">
+    </div>
+    <div class="form-group">
+      <label>Mật khẩu</label>
+      <input type="password" id="authPassword" placeholder="Nhập mật khẩu...">
+    </div>
+    <div style="color: var(--danger); font-size: 11px; margin-bottom: 12px; text-align: center;" class="hidden" id="authError"></div>
+    <div class="actions-grid">
+      <button id="loginBtn" class="btn-primary" style="margin-top: 0;">Đăng nhập</button>
+      <button id="registerBtn" class="btn-secondary" style="margin-top: 0;">Đăng ký</button>
+    </div>
+    <button id="googleLoginBtn" class="btn-secondary" style="margin-top: 12px; border-color: var(--primary);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.2c0-.8-.1-1.6-.2-2.3H12v4.4h5c-.2 1.4-1.1 2.6-2.3 3.4v2.8h3.8c2.2-2 3.5-4.9 3.5-8.3z" fill="#4285F4" stroke="none"/><path d="M12 21c2.5 0 4.6-.8 6.1-2.2l-3.8-2.8c-.8.6-1.9.9-3.2.9-2.5 0-4.6-1.7-5.3-3.9H2.1v2.9C4.1 19.3 7.8 21 12 21z" fill="#34A853" stroke="none"/><path d="M6.7 13.1c-.2-.6-.3-1.2-.3-1.9 0-.6.1-1.3.3-1.9V6.4H2.1C1.3 7.9.8 9.6.8 11.4c0 1.8.5 3.5 1.3 5l3.6-2.9z" fill="#FBBC05" stroke="none"/><path d="M12 6.8c1.3 0 2.5.4 3.5 1.3l2.6-2.6C16.6 4 14.5 3.2 12 3.2 7.8 3.2 4.1 4.9 2.1 8.4l3.6 2.9C6.5 9 8.6 6.8 12 6.8z" fill="#EA4335" stroke="none"/></svg>
+      Đăng nhập bằng Google
+    </button>
+  </div>
+
+  <div class="tabs-nav hidden" id="tabsNav">
+    <button class="tab-btn active" data-target="tabManual">Cào Thủ Công</button>
+    <button class="tab-btn" data-target="tabCampaigns">Kịch Bản</button>
+  </div>
+
+  <div id="tabManual" class="tab-content active">
+    <div id="setupForm" class="card hidden">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Số bài cào</label>
+        <input type="number" id="maxPosts" value="20" min="1" max="5000">
+      </div>
+      <div class="form-group">
+        <label>Tương tác tối thiểu</label>
+        <input type="number" id="minReactions" value="0" min="0">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Từ ngày</label>
+        <input type="date" id="sinceDate">
+      </div>
+      <div class="form-group">
+        <label>Đến ngày</label>
+        <input type="date" id="untilDate">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Lọc từ khóa (Keyword)</label>
+      <input type="text" id="keywordFilter" placeholder="VD: tuyển dụng, remote...">
+    </div>
+
+    <div class="form-group">
+      <label>Đường dẫn API Node.js</label>
+      <input type="text" id="serverUrl" value="http://localhost:8080" placeholder="http://localhost:8080">
+    </div>
+
+    <div class="form-group">
+      <label>Google Sheet Webhook URL (Tùy chọn)</label>
+      <input type="text" id="gsheetWebhook" placeholder="Nhập URL Google Apps Script Webhook...">
+    </div>
+
+    <button id="startBtn" class="btn-primary">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      <span id="startBtnText">Bắt đầu cào trang</span>
+    </button>
+  </div>
+  </div>
+
+  <div id="tabCampaigns" class="tab-content">
+    <div class="card" id="campaignsContainer" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0; font-size: 14px; color: var(--text-main);">Kịch bản của bạn</h3>
+        <button id="refreshCampaignsBtn" style="width: auto; padding: 4px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+        </button>
+      </div>
+      <div class="campaign-list" id="campaignList">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 12px;">Đang tải...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="progressSection" class="card hidden">
+    <div class="status-bar">
+      <span style="color: var(--text-muted); font-weight: 500;">Trạng thái hệ thống:</span>
+      <span id="statusText">Đang khởi tạo...</span>
+    </div>
+
+    <div class="console-header">
+      <div class="console-title">
+        <div class="pulse"></div>
+        Live Console
+      </div>
+    </div>
+    
+    <div id="console">⏳ Chờ lệnh thực thi từ tab...</div>
+
+    <button id="stopBtn" class="btn-danger">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+      Dừng tiến trình
+    </button>
+
+    <div id="resultActions" class="hidden">
+      <div class="actions-grid">
+        <button id="downloadJsonBtn" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Tải JSON
+        </button>
+        <button id="downloadCsvBtn" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Tải CSV
+        </button>
+      </div>
+      <button id="syncBtn" class="btn-success">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l-5.94-5.94"></path></svg>
+        Đồng bộ lên Dashboard
+      </button>
+      <button id="syncBackendSheetBtn" class="btn-success" style="background: linear-gradient(135deg, #10b981, #059669); margin-top: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Đồng bộ GSheet tự động (Backend)
+      </button>
+      <button id="syncGsheetBtn" class="btn-secondary" style="margin-top: 8px;">
+        Đồng bộ GSheet Webhook (Thủ công)
+      </button>
+      <button id="continueBtn" class="btn-primary" style="margin-top: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
+        Cào tiếp từ vị trí hiện tại
+      </button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
