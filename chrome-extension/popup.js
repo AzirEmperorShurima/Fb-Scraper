@@ -413,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (message.type === "PROGRESS") {
       statusText.innerText = `Đang cào (${message.count}/${message.target})`;
     } else if (message.type === "COMPLETE") {
-      scrapedPosts = message.posts;
+      scrapedPosts = message.allPosts || message.posts;
       if (message.groupName) {
         window.groupNameStr = message.groupName;
       }

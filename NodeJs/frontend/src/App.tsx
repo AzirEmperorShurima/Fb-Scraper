@@ -7,8 +7,10 @@ import { Dashboard } from "./pages/Dashboard";
 import { Jobs } from "./pages/Jobs";
 import { JobDetailsPage } from "./pages/JobDetailsPage";
 import { Settings } from "./pages/Settings";
+import { Accounts } from "./pages/Accounts";
 import { Scripts } from "./pages/Scripts";
 import { ScriptExecutionDetailsPage } from "./pages/ScriptExecutionDetailsPage";
+import { Overview } from "./pages/Overview";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // Google Provider - reads Client ID from .env (VITE_GOOGLE_CLIENT_ID)
@@ -65,6 +67,18 @@ function App() {
             {/* Protected Main Routes */}
             <Route
               path="/"
+              element={<Navigate to="/overview" replace />}
+            />
+            <Route
+              path="/overview"
+              element={
+                <ProtectedRoute>
+                  <Overview />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
@@ -92,6 +106,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/accounts"
+              element={
+                <ProtectedRoute>
+                  <Accounts />
                 </ProtectedRoute>
               }
             />

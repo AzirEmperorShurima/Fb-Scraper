@@ -10,7 +10,8 @@ import {
   Moon, 
   Menu, 
   X,
-  Server
+  Server,
+  Users
 } from "lucide-react";
 
 const Facebook: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -54,9 +55,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [darkMode]);
 
   const navItems = [
-    { name: "Dashboard", path: "/", icon: LayoutDashboard },
-    { name: "Scrape Jobs", path: "/jobs", icon: Activity },
+    { name: "Overview", path: "/overview", icon: Activity },
+    { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+    { name: "Scrape Jobs", path: "/jobs", icon: Server },
     { name: "Campaigns", path: "/scripts", icon: Server },
+    { name: "Accounts", path: "/accounts", icon: Users },
     { name: "Settings", path: "/settings", icon: Settings },
   ];
 
@@ -70,9 +73,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Sidebar for Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-850 shadow-sm">
         {/* Brand Logo */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b border-slate-200 dark:border-slate-850 bg-gradient-to-r from-violet-600/10 to-indigo-600/10">
-          <Facebook className="w-8 h-8 text-violet-600 dark:text-violet-400 animate-pulse" />
-          <span className="font-extrabold text-lg bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 bg-clip-text text-transparent">
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-border bg-primary/5">
+          <Facebook className="w-8 h-8 text-primary animate-pulse" />
+          <span className="font-extrabold text-lg text-primary">
             Scraper Pro
           </span>
         </div>
@@ -88,7 +91,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 to={item.path}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all duration-300 ${
                   isActive
-                    ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/10"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -129,8 +132,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex flex-col flex-1 min-w-0">
         <header className="md:hidden h-16 flex items-center justify-between px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-850 z-20">
           <div className="flex items-center gap-2">
-            <Facebook className="w-6 h-6 text-violet-600 dark:text-violet-400" />
-            <span className="font-extrabold text-md bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 bg-clip-text text-transparent">
+            <Facebook className="w-6 h-6 text-primary" />
+            <span className="font-extrabold text-md text-primary">
               Scraper Pro
             </span>
           </div>
@@ -165,7 +168,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm ${
                       isActive
-                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
                     }`}
                   >

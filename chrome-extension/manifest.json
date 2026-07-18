@@ -40,7 +40,7 @@
     "default_title": "FBGroupScraper Helper"
   },
   "oauth2": {
-    "client_id": "GOOGLE_EXTENSION_CLIENT_ID",
+    "client_id": "",
     "scopes": [
       "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/userinfo.profile"

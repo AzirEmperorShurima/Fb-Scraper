@@ -157,3 +157,6 @@ temp/
 
 .crx
 .pem
+chrome-extension/env.js
+chrome-extension/dist.pem
+chrome-extension/dist.crx

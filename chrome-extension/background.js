@@ -1,4 +1,4 @@
-importScripts('config.js');
+import { CONFIG } from './config.js';
 let activeCampaign = null;
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

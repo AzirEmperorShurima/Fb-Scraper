@@ -54,16 +54,16 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6 transition-colors duration-300">
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6 transition-colors duration-300">
       {/* Background Gradients */}
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-violet-600/5 to-transparent pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-[500px] pointer-events-none" />
       
-      <div className="w-full max-w-md bg-white dark:bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-slate-800/40 p-8 shadow-2xl relative z-10">
+      <div className="w-full max-w-md bg-card rounded-xl border border-border p-8 shadow-lg relative z-10">
         <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-violet-600/10 rounded-2xl mb-4">
-            <Facebook className="w-10 h-10 text-violet-600 dark:text-violet-400" />
+          <div className="p-3 bg-primary/10 rounded-xl mb-4">
+            <Facebook className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold text-primary">
             {isRegister ? "Join Scraper Pro" : "Welcome Back"}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 text-center">
@@ -74,7 +74,7 @@ export const Login: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-600 dark:text-rose-400 text-sm font-medium">
+          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm font-medium">
             {error}
           </div>
         )}
@@ -94,7 +94,7 @@ export const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Nhập email hoặc số điện thoại..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-border bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm text-foreground placeholder-muted-foreground"
               />
             </div>
           </div>
@@ -113,7 +113,7 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-border bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm text-foreground placeholder-muted-foreground"
               />
             </div>
           </div>
@@ -121,7 +121,7 @@ export const Login: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/10 hover:shadow-indigo-500/35 dark:hover:shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            className="w-full py-3.5 px-4 bg-primary text-primary-foreground rounded-[10px] font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -132,10 +132,10 @@ export const Login: React.FC = () => {
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200 dark:border-slate-800"></div>
+              <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">Hoặc tiếp tục với</span>
+              <span className="px-2 bg-card text-slate-500">Hoặc tiếp tục với</span>
             </div>
           </div>
 
@@ -165,7 +165,7 @@ export const Login: React.FC = () => {
               setIsRegister(!isRegister);
               setError("");
             }}
-            className="text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+            className="text-sm font-semibold text-primary hover:underline"
           >
             {isRegister ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
           </button>

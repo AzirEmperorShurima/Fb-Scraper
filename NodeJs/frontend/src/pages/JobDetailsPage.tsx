@@ -65,6 +65,7 @@ interface Job {
   id: string;
   group_url: string;
   status: string;
+  version?: number;
   max_posts: number;
   progress: number;
   created_at: string;
@@ -170,6 +171,8 @@ export const JobDetailsPage: React.FC = () => {
   const [pageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [postsLoading, setPostsLoading] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState("scraped_asc");
 
   // Auto-scroll logs console
   const logEndRef = useRef<HTMLPreElement | null>(null);
@@ -188,19 +191,22 @@ export const JobDetailsPage: React.FC = () => {
     try {
       const response = await api.get(`/api/jobs/${id}`);
       setJob(response.data);
+      if (selectedVersion === null && response.data.version) {
+        setSelectedVersion(response.data.version);
+      }
     } catch (err) {
       console.error("Error fetching job details", err);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, selectedVersion]);
 
   const fetchPosts = useCallback(async () => {
     if (!id) return;
     setPostsLoading(true);
     try {
       const response = await api.get(`/api/jobs/${id}/posts`, {
-        params: { page, size: pageSize, search }
+        params: { page, size: pageSize, search, version: selectedVersion || job?.version || 1, sortBy }
       });
       setPosts(response.data.posts);
       setTotalPosts(response.data.total);
@@ -209,7 +215,7 @@ export const JobDetailsPage: React.FC = () => {
     } finally {
       setPostsLoading(false);
     }
-  }, [id, page, pageSize, search]);
+  }, [id, page, pageSize, search, selectedVersion, job?.version, sortBy]);
 
   const fetchAnalytics = useCallback(async () => {
     if (!id) return;
@@ -290,24 +296,24 @@ export const JobDetailsPage: React.FC = () => {
     const base = "px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 w-fit";
     switch (status) {
       case "pending":
-        return <span className={`${base} bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30`}><Clock className="w-4 h-4" /> Pending</span>;
+        return <span className={`${base} bg-warning/10 text-warning border border-warning/30`}><Clock className="w-4 h-4" /> Pending</span>;
       case "running":
-        return <span className={`${base} bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30`}><Activity className="w-4 h-4 animate-spin" /> Running</span>;
+        return <span className={`${base} bg-info/10 text-info border border-info/30`}><Activity className="w-4 h-4 animate-spin" /> Running</span>;
       case "completed":
-        return <span className={`${base} bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30`}><CheckCircle2 className="w-4 h-4" /> Completed</span>;
+        return <span className={`${base} bg-success/10 text-success border border-success/30`}><CheckCircle2 className="w-4 h-4" /> Completed</span>;
       case "failed":
-        return <span className={`${base} bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30`}><XCircle className="w-4 h-4" /> Failed</span>;
+        return <span className={`${base} bg-destructive/10 text-destructive border border-destructive/30`}><XCircle className="w-4 h-4" /> Failed</span>;
       case "stopped":
-        return <span className={`${base} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700`}><AlertCircle className="w-4 h-4" /> Stopped</span>;
+        return <span className={`${base} bg-muted text-muted-foreground border border-border`}><AlertCircle className="w-4 h-4" /> Stopped</span>;
       default:
-        return <span className={`${base} bg-slate-100 dark:bg-slate-800 text-slate-500`}>Unknown</span>;
+        return <span className={`${base} bg-muted text-slate-500`}>Unknown</span>;
     }
   };
 
   if (loading) {
     return (
       <div className="py-32 flex flex-col items-center justify-center gap-3 text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
         <span className="text-sm font-medium">Retrieving job profile...</span>
       </div>
     );
@@ -316,10 +322,10 @@ export const JobDetailsPage: React.FC = () => {
   if (!job) {
     return (
       <div className="text-center py-20">
-        <XCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+        <XCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-bold">Job Not Found</h2>
         <p className="text-slate-500 dark:text-slate-400 mt-2">The requested scrape task ID does not exist.</p>
-        <Link to="/jobs" className="mt-4 inline-flex items-center gap-2 text-violet-600 hover:underline">
+        <Link to="/jobs" className="mt-4 inline-flex items-center gap-2 text-primary hover:underline">
           <ArrowLeft className="w-4 h-4" /> Back to Jobs
         </Link>
       </div>
@@ -340,7 +346,7 @@ export const JobDetailsPage: React.FC = () => {
       {/* Back button & title info */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
         <div className="space-y-2">
-          <Link to="/jobs" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-violet-600 transition mb-2">
+          <Link to="/jobs" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary transition mb-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Directory
           </Link>
@@ -352,7 +358,7 @@ export const JobDetailsPage: React.FC = () => {
             <span className="text-slate-300 dark:text-slate-800">|</span>
             {getStatusBadge(job.status)}
             {isJobActive && (
-              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 animate-pulse">
+              <span className="text-xs font-semibold text-info animate-pulse">
                 Live updates streaming
               </span>
             )}
@@ -381,7 +387,7 @@ export const JobDetailsPage: React.FC = () => {
                     }
                   }}
                   disabled={isDeletingSheet}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 rounded-xl text-sm font-bold transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-destructive/10 hover:bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 rounded-xl text-sm font-bold transition disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" />
                   {isDeletingSheet ? "Deleting..." : "Delete Sheet"}
@@ -445,16 +451,16 @@ export const JobDetailsPage: React.FC = () => {
 
       {/* Progress Card if running */}
       {isJobActive && (
-        <div className="p-6 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900/40 rounded-2xl space-y-4">
+        <div className="p-6 bg-card border border-blue-200 dark:border-blue-900/40 rounded-xl space-y-4">
           <div className="flex justify-between items-center text-sm font-bold">
-            <span className="text-blue-600 dark:text-blue-400 flex items-center gap-2">
+            <span className="text-info flex items-center gap-2">
               <Activity className="w-4 h-4 animate-spin" />
               Scraping posts and attachments...
             </span>
             <span>{job.progress}%</span>
           </div>
-          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-            <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${job.progress}%` }} />
+          <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
+            <div className="bg-info/100 h-full transition-all duration-500" style={{ width: `${job.progress}%` }} />
           </div>
           <p className="text-xs text-slate-400">
             Playwright browser is navigating and scrolling. Posts will show up below in real-time.
@@ -464,12 +470,12 @@ export const JobDetailsPage: React.FC = () => {
 
       {/* Live Console Terminal Logs */}
       {job && (isJobActive || job.logs) && (
-        <div className="bg-slate-950 rounded-2xl border border-slate-900 p-6 font-mono text-xs text-emerald-400 space-y-4 shadow-xl">
+        <div className="bg-slate-950 rounded-xl border border-slate-900 p-6 font-mono text-xs text-emerald-400 space-y-4 shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-900 pb-3 text-slate-500">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block"></span>
-              <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block"></span>
-              <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block"></span>
+              <span className="w-3 h-3 rounded-full bg-destructive/100/80 inline-block"></span>
+              <span className="w-3 h-3 rounded-full bg-warning/100/80 inline-block"></span>
+              <span className="w-3 h-3 rounded-full bg-success/100/80 inline-block"></span>
               <span className="ml-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Live Scraper Console</span>
             </div>
             <span className="text-[10px] font-semibold bg-slate-900 px-2.5 py-1 rounded text-emerald-400">Status: {job.status}</span>
@@ -486,7 +492,7 @@ export const JobDetailsPage: React.FC = () => {
 
       {/* Error Message alert */}
       {job.error_message && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-250 dark:border-rose-900/50 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-semibold flex gap-2">
+        <div className="p-4 bg-destructive/10 border border-rose-250 dark:border-rose-900/50 rounded-xl text-destructive text-sm font-semibold flex gap-2">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <div>
             <p className="font-bold">Scraper reported an error:</p>
@@ -496,11 +502,11 @@ export const JobDetailsPage: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-slate-200 dark:border-slate-850 flex gap-6">
+      <div className="border-b border-border flex gap-6">
         <button
           onClick={() => setActiveTab("results")}
           className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === "results"
-              ? "border-violet-600 text-violet-600 dark:text-violet-400"
+              ? "border-violet-600 text-primary"
               : "border-transparent text-slate-400 hover:text-slate-600"
             }`}
         >
@@ -510,7 +516,7 @@ export const JobDetailsPage: React.FC = () => {
         <button
           onClick={() => setActiveTab("analytics")}
           className={`pb-4 text-sm font-bold flex items-center gap-2 border-b-2 transition ${activeTab === "analytics"
-              ? "border-violet-600 text-violet-600 dark:text-violet-400"
+              ? "border-violet-600 text-primary"
               : "border-transparent text-slate-400 hover:text-slate-600"
             }`}
         >
@@ -523,33 +529,71 @@ export const JobDetailsPage: React.FC = () => {
       {activeTab === "results" ? (
         <div className="space-y-6">
           {/* Search bar */}
-          <div className="relative max-w-md">
-            <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-              <Search className="w-5 h-5" />
-            </span>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search post text content or authors..."
-              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm shadow-sm"
-            />
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between w-full">
+            <div className="flex flex-col sm:flex-row gap-4 items-center w-full max-w-2xl">
+              {/* Search bar */}
+              <div className="relative w-full sm:max-w-md">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                  <Search className="w-5 h-5" />
+                </span>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  placeholder="Search post text content or authors..."
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-border bg-card focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm shadow-sm"
+                />
+              </div>
+              
+              {/* Version Selector */}
+              {job.version && job.version > 1 && (
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">Job Version:</span>
+                  <select
+                    value={selectedVersion || job.version}
+                    onChange={(e) => { setSelectedVersion(parseInt(e.target.value)); setPage(1); }}
+                    className="px-4 py-3 rounded-xl border border-border bg-card focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm shadow-sm w-full sm:w-auto"
+                  >
+                    {Array.from({ length: job.version }, (_, i) => i + 1).map(v => (
+                      <option key={v} value={v}>Version {v}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Sort Selector */}
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">Sắp xếp:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                className="px-4 py-3 rounded-xl border border-border bg-card focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm shadow-sm w-full sm:w-auto min-w-[150px]"
+              >
+                <option value="scraped_asc">Thứ tự cào (Cũ - Mới)</option>
+                <option value="scraped_desc">Thứ tự cào (Mới - Cũ)</option>
+                <option value="timestamp_desc">Thời gian đăng (Gần nhất)</option>
+                <option value="timestamp_asc">Thời gian đăng (Cũ nhất)</option>
+                <option value="reactions_desc">Nhiều tương tác nhất</option>
+                <option value="comments_desc">Nhiều bình luận nhất</option>
+              </select>
+            </div>
           </div>
 
           {/* Posts List container */}
           {postsLoading && posts.length === 0 ? (
             <div className="py-24 flex flex-col items-center justify-center gap-2 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <span className="text-sm font-medium">Fetching posts...</span>
             </div>
           ) : posts.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 rounded-2xl p-16 text-center text-slate-400 dark:text-slate-500 text-sm">
+            <div className="bg-card border border-border rounded-xl p-16 text-center text-slate-400 dark:text-slate-500 text-sm">
               No posts matched your criteria or scraping hasn't started saving yet.
             </div>
           ) : (
             <div className="space-y-6">
               {posts.map((post) => (
-                <div key={post.id} className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-850 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+                <div key={post.id} className="bg-card border border-slate-200/60 dark:border-slate-850 rounded-xl p-6 shadow-sm flex flex-col gap-4">
                   {/* Post author and top row */}
                   <div className="flex justify-between items-start gap-4">
                     <div className="flex items-center gap-3">
@@ -575,7 +619,7 @@ export const JobDetailsPage: React.FC = () => {
                             href={post.author_url} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className="font-bold text-slate-800 dark:text-slate-100 hover:text-violet-600 hover:underline flex items-center gap-1"
+                            className="font-bold text-slate-800 dark:text-slate-100 hover:text-primary hover:underline flex items-center gap-1"
                           >
                             {post.author_name}
                             <ExternalLink className="w-3 h-3 text-slate-400" />
@@ -591,7 +635,7 @@ export const JobDetailsPage: React.FC = () => {
                             </span>
                           )}
                           {post.post_url && (
-                            <a href={post.post_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">
+                            <a href={post.post_url} target="_blank" rel="noreferrer" className="text-xs text-info hover:underline">
                               View Post
                             </a>
                           )}
@@ -617,7 +661,7 @@ export const JobDetailsPage: React.FC = () => {
                   {post.attachments_json && post.attachments_json.length > 0 && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 my-2">
                       {post.attachments_json.map((src, i) => (
-                        <div key={i} className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 max-h-48 flex items-center justify-center cursor-pointer group">
+                        <div key={i} className="rounded-xl overflow-hidden border border-border bg-slate-50 dark:bg-slate-800 max-h-48 flex items-center justify-center cursor-pointer group">
                           <img
                             src={src}
                             alt="Attachment"
@@ -634,11 +678,11 @@ export const JobDetailsPage: React.FC = () => {
 
                   {/* Engagement bottom panel */}
                   <div className="flex gap-6 text-xs font-semibold text-slate-500">
-                    <span className="flex items-center gap-1.5 text-rose-500">
-                      <Heart className="w-4 h-4 fill-current text-rose-500" />
+                    <span className="flex items-center gap-1.5 text-destructive">
+                      <Heart className="w-4 h-4 fill-current text-destructive" />
                       {post.reactions_json?.total || 0} Reactions
                     </span>
-                    <span className="flex items-center gap-1.5 text-blue-500">
+                    <span className="flex items-center gap-1.5 text-info">
                       <MessageSquare className="w-4 h-4" />
                       {post.comments_count} Comments
                     </span>
@@ -657,7 +701,7 @@ export const JobDetailsPage: React.FC = () => {
                     <button
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={page === 1}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40"
+                      className="p-2 rounded-lg border border-border hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -670,8 +714,8 @@ export const JobDetailsPage: React.FC = () => {
                             key={pNum}
                             onClick={() => setPage(pNum)}
                             className={`w-9 h-9 rounded-lg font-bold text-xs transition ${page === pNum
-                                ? "bg-violet-600 text-white"
-                                : "border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                ? "bg-primary text-white"
+                                : "border border-border hover:bg-slate-100 dark:hover:bg-slate-800"
                               }`}
                           >
                             {pNum}
@@ -686,7 +730,7 @@ export const JobDetailsPage: React.FC = () => {
                     <button
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40"
+                      className="p-2 rounded-lg border border-border hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -701,7 +745,7 @@ export const JobDetailsPage: React.FC = () => {
         <div className="space-y-8">
           {analyticsLoading && !analytics ? (
             <div className="py-24 flex flex-col items-center justify-center gap-2 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <span className="text-sm font-medium">Aggregating analytics data...</span>
             </div>
           ) : !analytics ? (
@@ -712,24 +756,24 @@ export const JobDetailsPage: React.FC = () => {
             <div className="space-y-8">
               {/* Aggregated KPI Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="glass-card p-6 rounded-2xl border-l-4 border-violet-500">
+                <div className="glass-card p-6 rounded-xl border-l-4 border-violet-500">
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Scraped Posts</p>
-                  <h3 className="text-3xl font-extrabold mt-1 text-violet-600 dark:text-violet-400">{analytics.total_posts}</h3>
+                  <h3 className="text-3xl font-extrabold mt-1 text-primary">{analytics.total_posts}</h3>
                 </div>
-                <div className="glass-card p-6 rounded-2xl border-l-4 border-rose-500">
+                <div className="glass-card p-6 rounded-xl border-l-4 border-rose-500">
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Reactions</p>
-                  <h3 className="text-3xl font-extrabold mt-1 text-rose-500">{analytics.total_reactions}</h3>
+                  <h3 className="text-3xl font-extrabold mt-1 text-destructive">{analytics.total_reactions}</h3>
                 </div>
-                <div className="glass-card p-6 rounded-2xl border-l-4 border-blue-500">
+                <div className="glass-card p-6 rounded-xl border-l-4 border-blue-500">
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Comments</p>
-                  <h3 className="text-3xl font-extrabold mt-1 text-blue-500">{analytics.total_comments}</h3>
+                  <h3 className="text-3xl font-extrabold mt-1 text-info">{analytics.total_comments}</h3>
                 </div>
               </div>
 
               {/* Engagement Charts Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Volume over time */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-6 rounded-2xl shadow-sm">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
                   <h3 className="font-bold text-md mb-6">Posting & Engagement Timeline</h3>
                   <div className="h-72 w-full">
                     {analytics.engagement_over_time.length === 0 ? (
@@ -762,7 +806,7 @@ export const JobDetailsPage: React.FC = () => {
                 </div>
 
                 {/* Reactions Pie Breakdown */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-6 rounded-2xl shadow-sm">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
                   <h3 className="font-bold text-md mb-6">Reactions Distribution</h3>
                   <div className="h-72 w-full flex flex-col sm:flex-row items-center justify-between">
                     {pieData.length === 0 ? (
@@ -806,7 +850,7 @@ export const JobDetailsPage: React.FC = () => {
                 </div>
 
                 {/* Top Active Contributors */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-6 rounded-2xl shadow-sm">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
                   <h3 className="font-bold text-md mb-6">Top Contributors</h3>
                   <div className="h-72 w-full">
                     {analytics.top_authors.length === 0 ? (
@@ -826,7 +870,7 @@ export const JobDetailsPage: React.FC = () => {
                 </div>
 
                 {/* Key Frequency Words Cloud list */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-6 rounded-2xl shadow-sm flex flex-col justify-between">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between">
                   <div>
                     <h3 className="font-bold text-md mb-6">Trending Keywords</h3>
                     {analytics.word_cloud.length === 0 ? (
@@ -836,9 +880,9 @@ export const JobDetailsPage: React.FC = () => {
                         {analytics.word_cloud.map((w, idx) => {
                           // Dynamic size class
                           const sizeClass =
-                            w.value > 15 ? "text-lg bg-violet-100 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 font-extrabold" :
+                            w.value > 15 ? "text-lg bg-violet-100 dark:bg-violet-950/40 text-primary font-extrabold" :
                               w.value > 8 ? "text-sm bg-indigo-50 dark:bg-indigo-950/20 text-indigo-500 dark:text-indigo-400 font-bold" :
-                                "text-xs bg-slate-50 dark:bg-slate-850 text-slate-500 font-medium";
+                                "text-xs bg-muted/50 text-slate-500 font-medium";
                           return (
                             <span key={idx} className={`px-2.5 py-1 rounded-lg ${sizeClass} cursor-default`}>
                               {w.text} <span className="opacity-55 text-[10px] font-mono ml-0.5">({w.value})</span>

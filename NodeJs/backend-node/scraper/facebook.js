@@ -31,7 +31,9 @@ function getRandomProxy() {
     // 2. Đọc từ file proxies.json
     const proxyFile = path.resolve(process.cwd(), "proxies.json");
     if (fs.existsSync(proxyFile)) {
-      const data = JSON.parse(fs.readFileSync(proxyFile, 'utf8'));
+      const rawData = fs.readFileSync(proxyFile, 'utf8');
+      const sanitizedData = rawData.replace(/^\s*\/\/.*$/gm, '');
+      const data = JSON.parse(sanitizedData);
       if (Array.isArray(data)) {
          proxyList = proxyList.concat(data);
       }
@@ -63,144 +65,6 @@ const USER_AGENTS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
 ];
 
-function generateSimulatedPosts(groupUrl, count) {
-  const authors = [
-    { name: "Nguyễn Văn A", url: "https://facebook.com/nguyen.van.a.1" },
-    { name: "Trần Thị B", url: "https://facebook.com/tran.thi.b.2" },
-    { name: "Cộng Đồng Lập Trình", url: "https://facebook.com/tech.enthusiast" },
-    { name: "John Doe", url: "https://facebook.com/john.doe.99" },
-    { name: "Jane Smith", url: "https://facebook.com/jane.smith.dev" },
-    { name: "Chuyên Gia AI", url: "https://facebook.com/ai.specialist.group" }
-  ];
-
-  const topics = [
-    "Hi mọi người, mình đang tìm tài liệu học Python Web Scraping bằng Playwright. Ai có nguồn nào hay share mình với ạ!",
-    "Hôm nay chia sẻ với cả nhà một project mã nguồn mở viết bằng FastAPI + React. UI/UX cực kỳ mượt mà, hỗ trợ xuất Excel và báo cáo trực quan.",
-    "Có anh em nào bị lỗi rate limit khi gọi API Facebook liên tục không? Xin giải pháp proxy xoay vòng để chống quét với.",
-    "Thông báo: Group mình chuẩn bị tổ chức buổi offline thảo luận về AI Summary và ứng dụng của LLM (Ollama/Groq) vào tối thứ Bảy tuần này.",
-    "Review nhanh thư viện fpdf2 để làm báo cáo PDF bằng Python. Code ngắn, dễ sử dụng, tuy nhiên font Unicode tiếng Việt cần cài thêm ngoài.",
-    "Vừa hoàn thiện xong dashboard quản lý jobs chạy ngầm. Real-time cập nhật trạng thái qua WebSocket cực kỳ mượt. Anh em nào cần code inbox nhé!"
-  ];
-
-  const posts = [];
-  const baseTime = new Date();
-
-  for (let i = 0; i < count * 5; i++) {
-    const author = authors[Math.floor(Math.random() * authors.length)];
-    const text = topics[Math.floor(Math.random() * topics.length)] + ` (Bài viết #${i + 1} giả lập Node)`;
-    
-    const likes = Math.floor(Math.random() * 140) + 10;
-    const love = Math.floor(Math.random() * 45) + 5;
-    const haha = Math.floor(Math.random() * 20);
-    const totalReacts = likes + love + haha;
-
-    const comments = Math.random() > 0.3 ? [
-      {
-        author: "Nguyễn Commenter",
-        text: "Bài viết hữu ích quá, cảm ơn tác giả!",
-        timestamp: new Date(baseTime.getTime() - Math.floor(Math.random() * 10) * 3600000)
-      },
-      {
-        author: "Dev Cứng",
-        text: "Giải pháp này chạy docker cực ngon luôn.",
-        timestamp: new Date(baseTime.getTime() - Math.floor(Math.random() * 5) * 3600000)
-      }
-    ] : [];
-
-    const postTimestamp = new Date(baseTime.getTime() - (i * 2 * 3600000 + Math.floor(Math.random() * 60) * 60000));
-
-    posts.push({
-      post_id: `sim_node_${Math.floor(Math.random() * 9000000000) + 1000000000}`,
-      author_name: author.name,
-      author_url: author.url,
-      text: text,
-      timestamp: postTimestamp,
-      reactions_json: {
-        total: totalReacts,
-        like: likes,
-        love: love,
-        haha: haha,
-        wow: 0, sad: 0, angry: 0
-      },
-      comments_count: comments.length + Math.floor(Math.random() * 20),
-      comments_json: comments,
-      attachments_json: Math.random() > 0.5 ? [`https://picsum.photos/id/${Math.floor(Math.random() * 100) + 1}/800/600`] : []
-    });
-  }
-  return posts;
-}
-
-async function runScraperSimulation({
-  groupUrl,
-  maxPosts,
-  progressCallback,
-  sinceDate,
-  untilDate,
-  keywordFilter,
-  minReactions,
-  logCallback
-}) {
-  const logMsg = (msg) => {
-    console.log(msg);
-    if (logCallback) logCallback(msg);
-  };
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-  logMsg(`🕵️ Bắt đầu cào dữ liệu giả lập Node.js cho nhóm: ${groupUrl}`);
-  await sleep(500);
-  logMsg("🌐 Đang khởi tạo trình duyệt ảo ở chế độ ẩn danh (Stealth Headless)...");
-  await sleep(800);
-  logMsg("🔑 Tải cookies phiên hoạt động... Đăng nhập Facebook thành công.");
-  await sleep(600);
-
-  const filterDesc = [];
-  if (sinceDate) filterDesc.push(`Từ ngày: ${sinceDate.toISOString().substring(0, 10)}`);
-  if (untilDate) filterDesc.push(`Đến ngày: ${untilDate.toISOString().substring(0, 10)}`);
-  if (keywordFilter) filterDesc.push(`Từ khóa: '${keywordFilter}'`);
-  if (minReactions > 0) filterDesc.push(`Tương tác tối thiểu: ${minReactions} reactions`);
-  
-  if (filterDesc.length > 0) {
-    logMsg(`⚙️ Áp dụng các bộ lọc nâng cao: ${filterDesc.join(", ")}`);
-  }
-
-  const pool = generateSimulatedPosts(groupUrl, maxPosts);
-  const filteredPosts = [];
-
-  for (const post of pool) {
-    const postDate = new Date(post.timestamp);
-    if (sinceDate && postDate < new Date(sinceDate)) {
-      logMsg(`🛑 Phát hiện bài viết cũ hơn ngày giới hạn (${postDate.toISOString().substring(0, 10)} < ${sinceDate.toISOString().substring(0, 10)}). Dừng cuộn.`);
-      break;
-    }
-    if (untilDate && postDate > new Date(untilDate)) {
-      continue;
-    }
-    
-    if (keywordFilter && !post.text.toLowerCase().includes(keywordFilter.toLowerCase())) {
-      continue;
-    }
-    
-    if (minReactions > 0 && post.reactions_json.total < minReactions) {
-      continue;
-    }
-
-    filteredPosts.push(post);
-    logMsg(`✅ Thu thập thành công bài viết của ${post.author_name} (Tương tác: ${post.reactions_json.total}, Lượt bình luận: ${post.comments_count})`);
-    
-    if (filteredPosts.length >= maxPosts) {
-      break;
-    }
-
-    if (filteredPosts.length % 3 === 0) {
-      await sleep(randomUniform(400, 800));
-      const percent = Math.floor((filteredPosts.length / maxPosts) * 100);
-      if (progressCallback) progressCallback(percent);
-    }
-  }
-
-  logMsg(`🏁 Hoàn thành cào dữ liệu! Tổng số bài viết thu hoạch: ${filteredPosts.length}`);
-  return filteredPosts;
-}
 
 function randomUniform(min, max) {
   return Math.random() * (max - min) + min;
@@ -218,15 +82,8 @@ export async function scrapeFbGroup({
   keywordFilter = null,
   minReactions = 0,
   logCallback = null,
-  simulate = false
+  checkStatusCallback = null
 }) {
-  if (simulate || (email && email.includes("demo"))) {
-    return await runScraperSimulation({
-      groupUrl, maxPosts, progressCallback,
-      sinceDate, untilDate, keywordFilter, minReactions, logCallback
-    });
-  }
-
   const logMsg = (msg) => {
     console.log(msg);
     if (logCallback) logCallback(msg);
@@ -263,7 +120,33 @@ export async function scrapeFbGroup({
 
   if (cookies && cookies.length > 0) {
     logMsg("🔑 Đang nạp cookies phiên hoạt động...");
-    await context.addCookies(cookies);
+    const sanitizedCookies = cookies.map(c => {
+      let sameSite = c.sameSite;
+      if (typeof sameSite === 'string') {
+        const lower = sameSite.toLowerCase();
+        if (lower === 'no_restriction' || lower === 'none') sameSite = 'None';
+        else if (lower === 'lax') sameSite = 'Lax';
+        else if (lower === 'strict') sameSite = 'Strict';
+        else sameSite = 'None';
+      } else {
+        sameSite = 'None';
+      }
+      
+      // Keep only essential fields to prevent Playwright rejection or mismatch
+      return { 
+        name: String(c.name), 
+        value: String(c.value), 
+        domain: '.facebook.com', 
+        path: '/',
+        sameSite: sameSite,
+        secure: true
+      };
+    });
+    try {
+      await context.addCookies(sanitizedCookies);
+    } catch (e) {
+      logMsg(`⚠️ Cảnh báo nạp cookies: ${e.message}`);
+    }
   }
 
   const page = await context.newPage();
@@ -277,8 +160,12 @@ export async function scrapeFbGroup({
 
     let isLoggedIn = false;
     try {
-      const searchBox = await page.$('input[placeholder*="Search"]');
-      if (searchBox) isLoggedIn = true;
+      // Bất kể ngôn ngữ (Locale) nào, trang Login của Facebook luôn có ô nhập password.
+      // Nếu không tìm thấy ô password, tức là ta đã ở trong News Feed hoặc Group (đã đăng nhập thành công).
+      const passwordInput = await page.$('input[type="password"]');
+      if (!passwordInput) {
+        isLoggedIn = true;
+      }
     } catch (e) {}
 
     if (!isLoggedIn) {
@@ -327,6 +214,28 @@ export async function scrapeFbGroup({
     logMsg("🔄 Bắt đầu phân tích bài đăng...");
 
     while (postsData.length < maxPosts && scrollFailures < 10 && !stopScrolling) {
+      if (checkStatusCallback) {
+        let currentStatus = await checkStatusCallback();
+        if (currentStatus === "stopped" || currentStatus === "completed" || currentStatus === "failed") {
+          logMsg("🛑 Job đã bị dừng từ hệ thống.");
+          stopScrolling = true;
+          break;
+        }
+        while (currentStatus === "paused") {
+          logMsg("⏸️ Job đang tạm dừng...");
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          currentStatus = await checkStatusCallback();
+          if (currentStatus !== "paused") {
+            logMsg("▶️ Job tiếp tục chạy...");
+            if (currentStatus === "stopped" || currentStatus === "completed" || currentStatus === "failed") {
+               stopScrolling = true;
+               break;
+            }
+          }
+        }
+        if (stopScrolling) break;
+      }
+
       const articles = await page.$$('div[role="article"], div[aria-posinset]');
       const initialCount = postsData.length;
 
@@ -384,13 +293,14 @@ export async function scrapeFbGroup({
 
 
           // Timestamp estimation sequence matching Python
-          let postTime = new Date(Date.now() - postsData.length * 3600000);
-          const timeElements = await article.$$('a[role="link"] span[dir="auto"], a[role="link"] > span, span[id] > span > span');
+          let postTime = new Date();
+          const linksForTime = await article.$$('a[role="link"]');
           let timeText = "";
-          for (const el of timeElements) {
+          for (const el of linksForTime) {
              const txt = await el.innerText();
-             if (txt && (txt.includes('giờ') || txt.includes('phút') || txt.includes('tháng') || txt.includes('hôm qua') || txt.includes('ngày'))) {
-                timeText = txt; break;
+             if (txt && /^(vừa xong|\d+\s*(phút|giờ|ngày|tháng|năm)|hôm qua)/i.test(txt)) {
+                timeText = txt; 
+                break;
              }
           }
           if (timeText) {
@@ -437,18 +347,22 @@ export async function scrapeFbGroup({
           }
 
           // Content
-          const textElements = await article.$$('div[dir="auto"]');
-          const textParts = [];
-          for (const elem of textElements) {
-            const parentTagName = await elem.evaluate(el => el.parentElement.tagName);
-            if (parentTagName !== "SPAN" && parentTagName !== "A") {
+          let textContent = "";
+          const messageElem = await article.$('div[data-ad-preview="message"]');
+          if (messageElem) {
+            textContent = await messageElem.innerText();
+          } else {
+            const textElements = await article.$$('div[dir="auto"]');
+            const textParts = [];
+            for (const elem of textElements) {
               const txt = await elem.innerText();
-              if (txt && txt.trim().length > 5 && !textParts.includes(txt.trim())) {
+              // Prevent duplicates and small button texts
+              if (txt && txt.trim().length > 10 && !textParts.some(p => p.includes(txt.trim()) || txt.trim().includes(p))) {
                 textParts.push(txt.trim());
               }
             }
+            textContent = textParts.join("\n");
           }
-          const textContent = textParts.join("\n");
 
           if (keywordFilter && !textContent.toLowerCase().includes(keywordFilter.toLowerCase())) {
             continue;
@@ -511,8 +425,12 @@ export async function scrapeFbGroup({
           }
 
           if (!postId) {
-            const signature = `${authorName}_${postTime.getTime()}_${textContent.substring(0, 50)}_${attachments.length}`;
+            const signature = `${authorName}_${textContent.substring(0, 100)}_${attachments.length}`;
             postId = `ext_meta_${hashCode(signature)}`;
+          }
+
+          if (!textContent && attachments.length === 0) {
+            continue; // Bỏ qua nếu không có cả nội dung chữ lẫn hình ảnh (thường là bài bị lỗi hoặc post rác)
           }
 
           if (scrapedIds.has(postId)) continue;
@@ -567,12 +485,7 @@ export async function scrapeFbGroup({
 
   } catch (error) {
     logMsg(`💥 Lỗi trong lúc cào bằng Playwright: ${error.message}`);
-    logMsg("🔄 Đang chuyển hướng sang cào dữ liệu giả lập...");
-    const fallbackPosts = await runScraperSimulation({
-      groupUrl, maxPosts, progressCallback,
-      sinceDate, untilDate, keywordFilter, minReactions, logCallback
-    });
-    return { posts: fallbackPosts, cookies: [] };
+    throw error;
   } finally {
     await context.close();
     await browser.close();

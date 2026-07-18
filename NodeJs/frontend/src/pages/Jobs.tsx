@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Eye,
   Square,
+  Play,
+  Pause,
   Loader2,
   Trash2,
   ExternalLink
@@ -38,6 +40,20 @@ export const Jobs: React.FC = () => {
   const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
   const syncingJobIdRef = React.useRef<string | null>(null);
 
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "error" | "success" | "confirm";
+    onConfirm?: () => void;
+  }>({ isOpen: false, title: "", message: "", type: "error" });
+
+  const closeModal = () => setModal(prev => ({ ...prev, isOpen: false }));
+
+  const showModal = (title: string, message: string, type: "error" | "success" | "confirm" = "error", onConfirm?: () => void) => {
+    setModal({ isOpen: true, title, message, type, onConfirm });
+  };
+
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       const jobId = syncingJobIdRef.current;
@@ -47,18 +63,18 @@ export const Jobs: React.FC = () => {
           access_token: tokenResponse.access_token
         });
         if (res.data && res.data.detail) {
-          alert(res.data.detail);
+          showModal("Thông báo", res.data.detail, "success");
         }
         fetchJobs();
       } catch (err: any) {
-        alert(err.response?.data?.detail || "Failed to sync to Google Sheets.");
+        showModal("Lỗi Đồng Bộ", err.response?.data?.detail || "Failed to sync to Google Sheets.", "error");
       } finally {
         setSyncingJobId(null);
         syncingJobIdRef.current = null;
       }
     },
     onError: () => {
-      alert("Cấp quyền Google Drive thất bại.");
+      showModal("Lỗi", "Cấp quyền Google Drive thất bại.", "error");
       setSyncingJobId(null);
       syncingJobIdRef.current = null;
     },
@@ -90,10 +106,51 @@ export const Jobs: React.FC = () => {
       await fetchJobs();
     } catch (err) {
       console.error("Error stopping job", err);
-      alert("Failed to stop job.");
+      showModal("Lỗi", "Failed to stop job.", "error");
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const handlePauseJob = async (jobId: string) => {
+    setActionLoadingId(jobId);
+    try {
+      await api.post(`/api/jobs/${jobId}/pause`);
+      await fetchJobs();
+    } catch (err: any) {
+      console.error("Error pausing job", err);
+      showModal("Lỗi", err.response?.data?.message || "Failed to pause job.", "error");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleResumeJob = async (jobId: string) => {
+    setActionLoadingId(jobId);
+    try {
+      await api.post(`/api/jobs/${jobId}/resume`);
+      await fetchJobs();
+    } catch (err: any) {
+      console.error("Error resuming job", err);
+      showModal("Lỗi", err.response?.data?.message || "Failed to resume job.", "error");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRestartJob = (jobId: string) => {
+    showModal("Xác nhận chạy lại", "Bạn có chắc chắn muốn chạy lại job này không? Tiến trình sẽ bị reset về 0%.", "confirm", async () => {
+      setActionLoadingId(jobId);
+      try {
+        await api.post(`/api/jobs/${jobId}/restart`);
+        await fetchJobs();
+      } catch (err: any) {
+        console.error("Error restarting job", err);
+        showModal("Lỗi", err.response?.data?.message || "Failed to restart job.", "error");
+      } finally {
+        setActionLoadingId(null);
+      }
+    });
   };
 
   const handleDownload = (jobId: string, format: string) => {
@@ -112,7 +169,7 @@ export const Jobs: React.FC = () => {
       })
       .catch((err) => {
         console.error("Export download failed", err);
-        alert("Export failed. Ensure the job has scraped posts successfully first.");
+        showModal("Lỗi Xuất File", "Export failed. Ensure the job has scraped posts successfully first.", "error");
       });
   };
 
@@ -120,15 +177,15 @@ export const Jobs: React.FC = () => {
     const base = "px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 w-fit";
     switch (status) {
       case "pending":
-        return <span className={`${base} bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30`}><Clock className="w-3.5 h-3.5" /> Pending</span>;
+        return <span className={`${base} bg-warning/10 text-warning border border-warning/30`}><Clock className="w-3.5 h-3.5" /> Pending</span>;
       case "running":
-        return <span className={`${base} bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30`}><Activity className="w-3.5 h-3.5 animate-spin" /> Running</span>;
+        return <span className={`${base} bg-info/10 text-info border border-info/30`}><Activity className="w-3.5 h-3.5 animate-spin" /> Running</span>;
       case "completed":
-        return <span className={`${base} bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30`}><CheckCircle2 className="w-3.5 h-3.5" /> Completed</span>;
+        return <span className={`${base} bg-success/10 text-success border border-success/30`}><CheckCircle2 className="w-3.5 h-3.5" /> Completed</span>;
       case "failed":
-        return <span className={`${base} bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30`}><XCircle className="w-3.5 h-3.5" /> Failed</span>;
+        return <span className={`${base} bg-destructive/10 text-destructive border border-destructive/30`}><XCircle className="w-3.5 h-3.5" /> Failed</span>;
       case "stopped":
-        return <span className={`${base} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700`}><AlertCircle className="w-3.5 h-3.5" /> Stopped</span>;
+        return <span className={`${base} bg-muted/50 text-muted-foreground border border-border`}><AlertCircle className="w-3.5 h-3.5" /> Stopped</span>;
       default:
         return <span className={`${base} bg-slate-100 dark:bg-slate-800 text-slate-500`}>Unknown</span>;
     }
@@ -162,15 +219,15 @@ export const Jobs: React.FC = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Filter by group URL or Job ID..."
-          className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm shadow-sm"
+          className="w-full pl-11 pr-4 py-3 rounded-lg border border-border bg-card focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm shadow-sm"
         />
       </div>
 
       {/* Directory Table */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 rounded-2xl overflow-hidden shadow-xl shadow-slate-100/50 dark:shadow-none">
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
-            <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
             <span className="text-sm font-medium">Loading scrape jobs...</span>
           </div>
         ) : filteredJobs.length === 0 ? (
@@ -181,7 +238,7 @@ export const Jobs: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <tr className="bg-muted/50 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-border">
                   <th className="px-6 py-4">Target (Group/Page/User)</th>
                   <th className="px-6 py-4">Started At</th>
                   <th className="px-6 py-4">Status</th>
@@ -190,7 +247,7 @@ export const Jobs: React.FC = () => {
                   <th className="px-6 py-4 text-right">Downloads</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-150 dark:divide-slate-800 text-sm font-medium">
+              <tbody className="divide-y divide-border text-sm font-medium">
                 {filteredJobs.map((job) => {
                   const getTargetName = (url: string, name?: string) => {
                     if (name) return name;
@@ -212,7 +269,7 @@ export const Jobs: React.FC = () => {
                         {getTargetName(job.group_url, job.group_name)}
                       </div>
                       <div className="text-xs text-slate-500 font-medium mt-1 truncate">
-                        <a href={job.group_url} target="_blank" rel="noopener noreferrer" className="hover:text-violet-600 hover:underline inline-flex items-center gap-1" title={job.group_url}>
+                        <a href={job.group_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline inline-flex items-center gap-1" title={job.group_url}>
                           {job.group_url.length > 35 ? job.group_url.substring(0, 35) + "..." : job.group_url}
                           <ExternalLink className="w-3 h-3" />
                         </a>
@@ -227,10 +284,10 @@ export const Jobs: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-24 bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div className="w-24 bg-muted h-2 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-300 ${job.status === "failed" ? "bg-rose-500" :
-                                job.status === "stopped" ? "bg-slate-400" : "bg-violet-600"
+                            className={`h-full rounded-full transition-all duration-300 ${job.status === "failed" ? "bg-destructive" :
+                                job.status === "stopped" ? "bg-muted-foreground" : "bg-primary"
                               }`}
                             style={{ width: `${job.progress}%` }}
                           />
@@ -242,35 +299,96 @@ export const Jobs: React.FC = () => {
                       <div className="flex items-center justify-center gap-2">
                         <Link
                           to={`/jobs/${job.id}`}
-                          className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition"
+                          className="p-2 rounded-lg border border-border hover:bg-muted text-slate-600 dark:text-slate-300 transition"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </Link>
 
+                        {(job.status === "pending" || job.status === "running") && (
+                          <>
+                            <button
+                              onClick={() => handlePauseJob(job.id)}
+                              disabled={actionLoadingId === job.id}
+                              className="p-2 rounded-lg border border-warning/30 hover:bg-warning/10 text-warning transition disabled:opacity-50"
+                              title="Pause Job"
+                            >
+                              {actionLoadingId === job.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Pause className="w-4 h-4 fill-current" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleStopJob(job.id)}
+                              disabled={actionLoadingId === job.id}
+                              className="p-2 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 transition disabled:opacity-50"
+                              title="Stop Job"
+                            >
+                              {actionLoadingId === job.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Square className="w-4 h-4 fill-current" />
+                              )}
+                            </button>
+                          </>
+                        )}
+
+                        {job.status === "paused" && (
+                          <>
+                            <button
+                              onClick={() => handleResumeJob(job.id)}
+                              disabled={actionLoadingId === job.id}
+                              className="p-2 rounded-lg border border-success/30 hover:bg-success/10 text-success transition disabled:opacity-50"
+                              title="Resume Job"
+                            >
+                              {actionLoadingId === job.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Play className="w-4 h-4 fill-current" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleStopJob(job.id)}
+                              disabled={actionLoadingId === job.id}
+                              className="p-2 rounded-lg border border-destructive/30 hover:bg-destructive/10 text-destructive transition disabled:opacity-50"
+                              title="Stop Job"
+                            >
+                              {actionLoadingId === job.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Square className="w-4 h-4 fill-current" />
+                              )}
+                            </button>
+                          </>
+                        )}
+
+                        {["completed", "stopped", "failed"].includes(job.status) && (
+                          <button
+                            onClick={() => handleRestartJob(job.id)}
+                            disabled={actionLoadingId === job.id}
+                            className="p-2 rounded-lg border border-info/30 hover:bg-info/10 text-info transition disabled:opacity-50"
+                            title="Restart Job"
+                          >
+                            {actionLoadingId === job.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4 fill-current" />
+                            )}
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleStopJob(job.id)}
-                          disabled={actionLoadingId === job.id}
-                          className="p-2 rounded-lg border border-amber-200 dark:border-amber-900/50 hover:bg-amber-50 dark:hover:bg-amber-950/20 text-amber-600 dark:text-amber-400 transition disabled:opacity-50"
-                          title="Stop Job"
-                        >
-                          {actionLoadingId === job.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Square className="w-4 h-4 fill-current" />
-                          )}
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (!confirm("Are you sure you want to delete this job? This will delete all scraped posts.")) return;
-                            try {
-                              await api.delete(`/api/jobs/${job.id}`);
-                              fetchJobs();
-                            } catch (err) {
-                              alert("Failed to delete job.");
-                            }
+                          onClick={() => {
+                            showModal("Xóa Job", "Bạn có chắc chắn muốn xóa job này không? Dữ liệu cào được sẽ bị mất hoàn toàn.", "confirm", async () => {
+                              try {
+                                await api.delete(`/api/jobs/${job.id}`);
+                                fetchJobs();
+                              } catch (err) {
+                                showModal("Lỗi", "Failed to delete job.", "error");
+                              }
+                            });
                           }}
-                          className="p-2 rounded-lg border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 transition"
+                          className="p-2 rounded-lg border border-destructive/30 hover:bg-destructive/10 text-destructive transition"
                           title="Delete Job"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -282,19 +400,19 @@ export const Jobs: React.FC = () => {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleDownload(job.id, "xlsx")}
-                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100/70 border border-emerald-200/50 transition"
+                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-success/10 text-success hover:bg-success/20 border border-success/30 transition"
                           >
                             Excel
                           </button>
                           <button
                             onClick={() => handleDownload(job.id, "csv")}
-                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100/70 border border-blue-200/50 transition"
+                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-info/10 text-info hover:bg-info/20 border border-info/30 transition"
                           >
                             CSV
                           </button>
                           <button
                             onClick={() => handleDownload(job.id, "json")}
-                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/70 border border-indigo-200/50 transition"
+                            className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border border-primary/30 transition"
                           >
                             JSON
                           </button>
@@ -303,7 +421,7 @@ export const Jobs: React.FC = () => {
                               href={job.spreadsheet_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition shadow-sm"
+                              className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-success text-success-foreground hover:bg-success/90 transition shadow-sm"
                             >
                               Open GSheet
                             </a>
@@ -316,7 +434,7 @@ export const Jobs: React.FC = () => {
                                 setTimeout(() => googleLogin(), 0);
                               }}
                               disabled={syncingJobId === job.id}
-                              className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-teal-50 dark:bg-teal-950/20 text-teal-600 dark:text-teal-400 hover:bg-teal-100/70 border border-teal-200/50 transition disabled:opacity-50"
+                              className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-success/10 text-success hover:bg-success/20 border border-success/30 transition disabled:opacity-50"
                             >
                               {syncingJobId === job.id ? "Syncing..." : "Sync GSheet"}
                             </button>
@@ -334,6 +452,40 @@ export const Jobs: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Custom Modal */}
+      {modal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              {modal.type === "error" && <XCircle className="w-6 h-6 text-destructive" />}
+              {modal.type === "success" && <CheckCircle2 className="w-6 h-6 text-success" />}
+              {modal.type === "confirm" && <AlertCircle className="w-6 h-6 text-warning" />}
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{modal.title}</h3>
+            </div>
+            <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">{modal.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                {modal.type === "confirm" ? "Hủy" : "Đóng"}
+              </button>
+              {modal.type === "confirm" && (
+                <button
+                  onClick={() => {
+                    if (modal.onConfirm) modal.onConfirm();
+                    closeModal();
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition"
+                >
+                  Đồng ý
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

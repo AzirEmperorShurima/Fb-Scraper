@@ -3,11 +3,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const redisConfig = {
-  password: process.env.REDIS_PASSWORD || undefined,
+  username: process.env.REDIS_USERNAME || 'default',
+  password: process.env.REDIS_PASSWORD || 'u1QxZM2X34diXL1GBD8Q1ddDBdoOxrLY',
   socket: {
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    tls: process.env.REDIS_TLS === 'true'
+    host: process.env.REDIS_HOST || 'redis-10045.crce178.ap-east-1-1.ec2.cloud.redislabs.com',
+    port: parseInt(process.env.REDIS_PORT || '10045', 10)
   }
 };
 

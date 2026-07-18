@@ -11,6 +11,12 @@ interface ScriptStep {
   min_reactions?: number;
 }
 
+interface FBAccount {
+  id: number;
+  email: string;
+  status: string;
+}
+
 interface CrawlerScript {
   id: string;
   name: string;
@@ -52,14 +58,33 @@ export const Scripts: React.FC = () => {
   
   const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
 
+  // --- Run Modal State ---
+  const [runModalScriptId, setRunModalScriptId] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<FBAccount[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [isAutoSelect, setIsAutoSelect] = useState(true);
+  const [autoSelectCount, setAutoSelectCount] = useState(1);
+
+  // --- Add Account Modal State ---
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [newAccEmail, setNewAccEmail] = useState("");
+  const [newAccPassword, setNewAccPassword] = useState("");
+  const [newAccCookies, setNewAccCookies] = useState("");
+  const [addingAccount, setAddingAccount] = useState(false);
+
   const fetchData = async () => {
     try {
-      const [scriptsRes, execsRes] = await Promise.all([
+      const [scriptsRes, execsRes, accountsRes] = await Promise.all([
         api.get("/api/scripts"),
-        api.get("/api/scripts/executions")
+        api.get("/api/scripts/executions"),
+        api.get("/api/config/fb-accounts")
       ]);
       setScripts(scriptsRes.data);
       setExecutions(execsRes.data);
+      setAccounts(accountsRes.data);
+      if (accountsRes.data.length > 0 && selectedAccounts.length === 0) {
+        setSelectedAccounts([accountsRes.data[0].id.toString()]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -137,18 +162,79 @@ export const Scripts: React.FC = () => {
     }
   };
 
-  const handleRunScript = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExecutingIds(prev => [...prev, id]);
+  const [editingAccountId, setEditingAccountId] = useState<number | null>(null);
+
+  const handleAddAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAccEmail) return;
+    setAddingAccount(true);
     try {
-      const res = await api.post(`/api/scripts/${id}/execute`);
+      if (editingAccountId) {
+        await api.put(`/api/config/fb-accounts/${editingAccountId}`, {
+          email: newAccEmail,
+          password: newAccPassword,
+          cookies_json: newAccCookies || "[]"
+        });
+      } else {
+        await api.post("/api/config/fb-accounts", {
+          email: newAccEmail,
+          password: newAccPassword,
+          cookies_json: newAccCookies || "[]"
+        });
+      }
+      setShowAddAccountModal(false);
+      setEditingAccountId(null);
+      setNewAccEmail("");
+      setNewAccPassword("");
+      setNewAccCookies("");
+      fetchData();
+    } catch(err) {
+      console.error(err);
+      alert(editingAccountId ? "Failed to update account" : "Failed to add account");
+    } finally {
+      setAddingAccount(false);
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingAccountId(null);
+    setNewAccEmail("");
+    setNewAccPassword("");
+    setNewAccCookies("");
+    setShowAddAccountModal(true);
+  };
+
+  const openEditModal = (acc: FBAccount) => {
+    setEditingAccountId(acc.id);
+    setNewAccEmail(acc.email);
+    setNewAccPassword(""); 
+    setNewAccCookies(""); 
+    setShowAddAccountModal(true);
+  };
+
+  const handleRunScriptClick = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRunModalScriptId(id);
+  };
+
+  const confirmRunScript = async () => {
+    if (!runModalScriptId) return;
+    setExecutingIds(prev => [...prev, runModalScriptId]);
+    const idToRun = runModalScriptId;
+    setRunModalScriptId(null);
+
+    try {
+      const payload = {
+        fb_account_ids: selectedAccounts.map(id => parseInt(id))
+      };
+      const res = await api.post(`/api/scripts/${idToRun}/execute`, payload);
+      
       // Trigger extension via frontend-connector
       window.postMessage({
         type: "FB_SCRAPER_START_CAMPAIGN",
         payload: {
           executionId: res.data.execution._id,
           scriptDetails: res.data.script,
-          fbAccount: res.data.fbAccount,
           token: localStorage.getItem("token")
         }
       }, "*");
@@ -157,7 +243,7 @@ export const Scripts: React.FC = () => {
     } catch (err) {
       alert("Failed to execute script");
     } finally {
-      setExecutingIds(prev => prev.filter(x => x !== id));
+      setExecutingIds(prev => prev.filter(x => x !== idToRun));
     }
   };
 
@@ -211,7 +297,7 @@ export const Scripts: React.FC = () => {
         </div>
         <button
           onClick={isCreating ? () => setIsCreating(false) : handleOpenCreate}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl shadow-lg shadow-violet-500/25 flex items-center gap-2 transition"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-sm flex items-center gap-2 transition"
         >
           {isCreating ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
           {isCreating ? "Cancel" : "Create New Script"}
@@ -220,26 +306,26 @@ export const Scripts: React.FC = () => {
 
       {/* Dashboard Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">Total Scripts</p>
+        <div className="bg-card border border-border p-5 rounded-xl shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Scripts</p>
           <p className="text-3xl font-black">{scripts.length}</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">Total Executions</p>
+        <div className="bg-card border border-border p-5 rounded-xl shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Executions</p>
           <p className="text-3xl font-black">{executions.length}</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">Active Runs</p>
-          <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{activeExecutions.length}</p>
+        <div className="bg-card border border-border p-5 rounded-xl shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Active Runs</p>
+          <p className="text-3xl font-black text-info">{activeExecutions.length}</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-5 rounded-2xl shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">Success Rate</p>
-          <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{successRate}%</p>
+        <div className="bg-card border border-border p-5 rounded-xl shadow-sm">
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Success Rate</p>
+          <p className="text-3xl font-black text-success">{successRate}%</p>
         </div>
       </div>
 
       {isCreating && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 p-6 rounded-2xl shadow-xl shadow-slate-100/50 dark:shadow-none space-y-6">
+        <div className="bg-card border border-border p-6 rounded-xl shadow-sm space-y-6">
           <h2 className="text-xl font-bold">{editScriptId ? "Edit Script" : "New Script Builder"}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -250,7 +336,7 @@ export const Scripts: React.FC = () => {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="E.g., Daily Competitor Check"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
               />
             </div>
             <div>
@@ -260,7 +346,7 @@ export const Scripts: React.FC = () => {
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Scrape multiple target groups"
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-transparent text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-transparent text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
               />
             </div>
           </div>
@@ -268,7 +354,7 @@ export const Scripts: React.FC = () => {
           <div className="space-y-4">
             <h3 className="text-md font-bold text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800 pb-2">Execution Steps</h3>
             {newSteps.map((step, index) => (
-              <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-end bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+              <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-end bg-muted/50 p-4 rounded-xl border border-border">
                 <div className="flex-1 w-full">
                   <label className="block text-xs font-bold mb-1 text-slate-500">Step {step.step_order}: Target URL</label>
                   <input
@@ -276,7 +362,7 @@ export const Scripts: React.FC = () => {
                     value={step.group_url}
                     onChange={e => handleStepChange(index, "group_url", e.target.value)}
                     placeholder="https://facebook.com/groups/..."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                   />
                 </div>
                 <div className="w-full md:w-24">
@@ -285,7 +371,7 @@ export const Scripts: React.FC = () => {
                     type="number"
                     value={step.max_posts}
                     onChange={e => handleStepChange(index, "max_posts", parseInt(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                   />
                 </div>
                 <div className="w-full md:w-32">
@@ -295,13 +381,13 @@ export const Scripts: React.FC = () => {
                     value={step.keyword_filter || ""}
                     onChange={e => handleStepChange(index, "keyword_filter", e.target.value)}
                     placeholder="Optional"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                   />
                 </div>
                 <button
                   onClick={() => handleRemoveStep(index)}
                   disabled={newSteps.length === 1}
-                  className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-400 dark:hover:bg-rose-900/50 transition disabled:opacity-50"
+                  className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition disabled:opacity-50"
                   title="Remove Step"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -311,7 +397,7 @@ export const Scripts: React.FC = () => {
             
             <button
               onClick={handleAddStep}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-lg dark:bg-violet-900/20 dark:hover:bg-violet-900/40 dark:text-violet-400 transition"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition"
             >
               <Plus className="w-4 h-4" /> Add Step
             </button>
@@ -321,7 +407,7 @@ export const Scripts: React.FC = () => {
             <button
               onClick={handleSaveScript}
               disabled={saving}
-              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2"
+              className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-sm transition flex items-center gap-2"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {editScriptId ? "Save Changes" : "Save Campaign"}
@@ -345,10 +431,10 @@ export const Scripts: React.FC = () => {
                 <div 
                   key={script.id} 
                   onClick={() => setSelectedScriptId(script.id)}
-                  className={`bg-white dark:bg-slate-900 border rounded-xl p-5 shadow-sm cursor-pointer transition-all ${
+                  className={`bg-card border rounded-xl p-5 shadow-sm cursor-pointer transition-all ${
                     selectedScriptId === script.id 
-                      ? "border-violet-500 ring-1 ring-violet-500 dark:border-violet-500 shadow-md" 
-                      : "border-slate-200 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-800"
+                      ? "border-primary ring-1 ring-primary shadow-md" 
+                      : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="flex justify-between items-start">
@@ -359,22 +445,22 @@ export const Scripts: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleOpenEdit(script); }}
-                        className="p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400 transition"
+                        className="p-2 rounded-lg bg-warning/10 text-warning hover:bg-warning/20 transition"
                         title="Edit Script"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={(e) => handleRunScript(script.id, e)}
+                        onClick={(e) => handleRunScriptClick(script.id, e)}
                         disabled={executingIds.includes(script.id)}
-                        className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 transition"
+                        className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 transition"
                         title="Run Script"
                       >
                         {executingIds.includes(script.id) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                       </button>
                       <button
                         onClick={(e) => handleDeleteScript(script.id, e)}
-                        className="p-2 rounded-lg bg-slate-50 text-slate-500 hover:text-rose-600 dark:bg-slate-800 dark:hover:text-rose-400 transition"
+                        className="p-2 rounded-lg bg-muted/50 text-muted-foreground hover:text-destructive transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -387,7 +473,7 @@ export const Scripts: React.FC = () => {
                         let shortUrl = s.group_url;
                         try { shortUrl = new URL(s.group_url).pathname; } catch(e){}
                         return (
-                          <span key={i} className="px-2 py-1 text-[10px] font-bold rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 truncate max-w-[150px]" title={s.group_url}>
+                          <span key={i} className="px-2 py-1 text-[10px] font-bold rounded-md bg-muted text-muted-foreground truncate max-w-[150px]" title={s.group_url}>
                             {i+1}. {shortUrl.substring(0, 15)}...
                           </span>
                         );
@@ -406,18 +492,18 @@ export const Scripts: React.FC = () => {
             Execution History
           </h2>
           {!selectedScriptId ? (
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+            <div className="bg-card border border-border rounded-xl p-8 flex flex-col items-center justify-center text-center">
               <Database className="w-12 h-12 text-slate-300 mb-3" />
               <p className="text-slate-500 font-medium">Select a script to view its execution history</p>
             </div>
           ) : filteredExecutions.length === 0 ? (
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+            <div className="bg-card border border-border rounded-xl p-8 flex flex-col items-center justify-center text-center">
               <p className="text-slate-500">No executions yet for this script.</p>
             </div>
           ) : (
             <div className="space-y-3">
               {filteredExecutions.map(exec => (
-                <div key={exec.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm text-sm">
+                <div key={exec.id} className="bg-card border border-border rounded-xl p-4 shadow-sm text-sm">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <span className="font-bold">{exec.script_id?.name || "Unknown Script"}</span>
@@ -429,9 +515,9 @@ export const Scripts: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3 mb-2">
                     <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                      exec.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                      exec.status === "failed" ? "bg-rose-100 text-rose-700" :
-                      exec.status === "running" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-700"
+                      exec.status === "completed" ? "bg-success/10 text-success" :
+                      exec.status === "failed" ? "bg-destructive/10 text-destructive" :
+                      exec.status === "running" ? "bg-info/10 text-info" : "bg-muted/50 text-muted-foreground"
                     }`}>
                       {exec.status.toUpperCase()}
                     </span>
@@ -441,16 +527,16 @@ export const Scripts: React.FC = () => {
                     {exec.status !== 'pending' && (
                        <Link 
                          to={`/scripts/executions/${exec.id}`} 
-                         className="ml-auto text-xs font-bold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1 rounded-md transition"
+                         className="ml-auto text-xs font-bold text-primary hover:text-primary/90 bg-primary/10 hover:bg-primary/20 px-3 py-1 rounded-md transition"
                        >
                          View Data & Sync
                        </Link>
                     )}
                   </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mb-3">
-                    <div className="bg-blue-500 h-full transition-all" style={{ width: `${exec.progress}%` }}></div>
+                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden mb-3">
+                    <div className="bg-info h-full transition-all" style={{ width: `${exec.progress}%` }}></div>
                   </div>
-                  <div className="bg-slate-900 dark:bg-black rounded-lg p-3 max-h-32 overflow-y-auto font-mono text-[10px] text-emerald-400 whitespace-pre-wrap">
+                  <div className="bg-black/90 rounded-lg p-3 max-h-32 overflow-y-auto font-mono text-[10px] text-success whitespace-pre-wrap">
                     {exec.logs || "Waiting for logs..."}
                   </div>
                 </div>
@@ -459,6 +545,182 @@ export const Scripts: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Run Script Account Selection Modal */}
+      {runModalScriptId && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-card rounded-[16px] p-6 w-full max-w-md shadow-2xl relative animate-in zoom-in-95 border border-border">
+            <button 
+              onClick={() => setRunModalScriptId(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Play className="w-5 h-5 text-emerald-600 fill-current" /> Execute Campaign
+            </h3>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-bold">Select Facebook Accounts</label>
+                  <button 
+                    type="button" 
+                    onClick={() => openAddModal()}
+                    className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/90 bg-primary/10 px-2 py-1 rounded"
+                  >
+                    <Plus className="w-3 h-3" /> Add Account
+                  </button>
+                </div>
+                
+                {accounts.length === 0 ? (
+                  <div className="py-3 px-4 bg-muted/50 border border-dashed border-border rounded-xl text-xs text-slate-400 flex items-center justify-center">
+                    No accounts found. Please add one.
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4 mb-3">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isAutoSelect}
+                          onChange={(e) => {
+                            setIsAutoSelect(e.target.checked);
+                            if (e.target.checked) {
+                              const validAccs = accounts.filter(a => a.status === 'valid').slice(0, autoSelectCount);
+                              setSelectedAccounts(validAccs.length > 0 ? validAccs.map(a => a.id.toString()) : [accounts[0].id.toString()]);
+                            }
+                          }}
+                          className="rounded text-primary focus:ring-primary"
+                        />
+                        <span>Auto-select</span>
+                      </label>
+                      {isAutoSelect && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Count:</span>
+                          <input
+                            type="number"
+                            min={1} max={accounts.length} value={autoSelectCount}
+                            onChange={(e) => {
+                              const cnt = parseInt(e.target.value) || 1;
+                              setAutoSelectCount(cnt);
+                              const validAccs = accounts.filter(a => a.status === 'valid').slice(0, cnt);
+                              setSelectedAccounts(validAccs.length > 0 ? validAccs.map(a => a.id.toString()) : [accounts[0].id.toString()]);
+                            }}
+                            className="w-16 px-2 py-1 rounded-lg border border-border bg-transparent text-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="h-40 overflow-y-auto border border-border rounded-xl">
+                      {accounts.map(acc => (
+                        <label 
+                          key={acc.id} 
+                          className={`flex items-center gap-3 p-3 border-b border-border last:border-0 cursor-pointer transition ${
+                            selectedAccounts.includes(acc.id.toString()) ? 'bg-primary/10' : 'hover:bg-muted/50'
+                          }`}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={selectedAccounts.includes(acc.id.toString())}
+                            onChange={(e) => {
+                              if (isAutoSelect) setIsAutoSelect(false);
+                              const checked = e.target.checked;
+                              if (checked) {
+                                setSelectedAccounts(prev => [...prev, acc.id.toString()]);
+                              } else {
+                                setSelectedAccounts(prev => prev.filter(id => id !== acc.id.toString()));
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-primary focus:ring-primary"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold truncate">{acc.email}</p>
+                            <p className="text-xs text-slate-500 capitalize">{acc.status}</p>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openEditModal(acc);
+                            }}
+                            className="text-xs font-semibold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-md transition"
+                          >
+                            Edit
+                          </button>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      <span className="font-bold text-primary">{selectedAccounts.length}</span> account(s) selected.
+                      If one gets blocked, the system will fallback to the next.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={confirmRunScript}
+              disabled={selectedAccounts.length === 0}
+              className="w-full py-3 bg-success text-success-foreground font-bold rounded-[10px] shadow-sm hover:opacity-90 disabled:opacity-50 disabled:pointer-events-none transition"
+            >
+              Start Campaign Now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Account Modal (Shared with Dashboard essentially) */}
+      {showAddAccountModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-card rounded-[16px] border border-border p-6 w-full max-w-md shadow-2xl relative animate-in zoom-in-95">
+            <button 
+              onClick={() => setShowAddAccountModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold mb-4">{editingAccountId ? "Edit Facebook Account" : "Add Facebook Account"}</h3>
+            <form onSubmit={handleAddAccount} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Email</label>
+                <input 
+                  type="email" required
+                  value={newAccEmail} onChange={(e) => setNewAccEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-border bg-transparent rounded-lg text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" 
+                  placeholder="name@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Password</label>
+                <input 
+                  type="password"
+                  value={newAccPassword} onChange={(e) => setNewAccPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-border bg-transparent rounded-lg text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary" 
+                  placeholder="Optional (for auto-login)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Cookies JSON</label>
+                <textarea 
+                  value={newAccCookies} onChange={(e) => setNewAccCookies(e.target.value)}
+                  className="w-full px-3 py-2 border border-border bg-transparent rounded-lg text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary font-mono text-xs" 
+                  rows={4} placeholder="[ { ... } ]"
+                />
+              </div>
+              <button 
+                type="submit" disabled={addingAccount}
+                className="w-full py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-[10px] text-sm"
+              >
+                {addingAccount ? "Saving..." : "Save Account"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

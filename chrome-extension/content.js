@@ -18,9 +18,9 @@
       chrome.runtime.sendMessage({ type: "PROGRESS", count, target });
     } catch(e) {}
   };
-  const sendComplete = (posts, groupName) => {
+  const sendComplete = (posts, allPosts, groupName) => {
     try {
-      chrome.runtime.sendMessage({ type: "COMPLETE", posts, groupName });
+      chrome.runtime.sendMessage({ type: "COMPLETE", posts, allPosts, groupName });
     } catch(e) {}
   };
   const sendBatch = (posts, groupName) => {
@@ -575,7 +575,7 @@
     groupName = groupName.replace(/ \| Facebook$/, "").trim();
 
     sendLog(`🏁 Đã kết thúc tiến trình cào. Tổng cộng: ${postsData.length} bài gốc.`);
-    sendComplete(unsyncedPosts, groupName);
+    sendComplete(unsyncedPosts, postsData, groupName);
   }
   async function hashSHA256(message) {
     const msgBuffer = new TextEncoder().encode(message);

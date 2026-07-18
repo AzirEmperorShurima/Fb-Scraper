@@ -5,7 +5,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
-import { initDatabase, User, ScrapeJob, ScriptExecution } from "./database.js";
+import { initDatabase } from "./database.js";
+import { User, ScrapeJob, ScriptExecution } from "./models/index.js";
 import { SECRET_KEY, authenticateToken } from "./middleware/auth.js";
 import { redisSub } from "./redis.js";
 import "./worker.js";
@@ -17,6 +18,7 @@ import exportsRouter from "./routes/exports.js";
 import analyticsRouter from "./routes/analytics.js";
 import googleAuthRouter from "./routes/googleAuth.js";
 import sheetsRouter from "./routes/sheets.js";
+import statsRouter from "./routes/stats.js";
 
 dotenv.config();
 
@@ -43,6 +45,7 @@ app.use("/api/config/fb-accounts", configRouter);
 app.use("/api/jobs", jobsRouter);
 app.use("/api/jobs", exportsRouter);
 app.use("/api/jobs", analyticsRouter);
+app.use("/api/stats", statsRouter);
 app.use("/api/sheets", sheetsRouter);
 app.use("/api/scripts", scriptsRouter);
 

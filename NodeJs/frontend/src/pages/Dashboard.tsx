@@ -1,360 +1,226 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import api from "../utils/api";
 import { 
-  Play, 
   Activity, 
   Layers, 
   Users, 
+  ArrowRight,
+  PieChart,
   TrendingUp,
-  ArrowRight
+  BarChart2
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart as RePieChart,
+  Pie,
+  Legend
+} from 'recharts';
 
-interface Job {
-  id: string;
-  group_url: string;
-  status: string;
-  max_posts: number;
-  progress: number;
-  created_at: string;
-  error_message?: string;
+interface DashboardStats {
+  totalJobs: number;
+  activeJobs: number;
+  totalAccounts: number;
+  validAccounts: number;
+  postsTimeline: { date: string; posts: number }[];
+  jobStatusDistribution: { name: string; value: number }[];
 }
 
-interface FBAccount {
-  id: number;
-  email: string;
-  status: string;
-}
+const COLORS = ['#2563eb', '#16a34a', '#eab308', '#dc2626', '#0ea5e9', '#64748b'];
 
 export const Dashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [groupUrl, setGroupUrl] = useState("");
-  const [maxPosts, setMaxPosts] = useState(50);
-  const [includeComments, setIncludeComments] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
-  const [sinceDate, setSinceDate] = useState("");
-  const [untilDate, setUntilDate] = useState("");
-  const [keywordFilter, setKeywordFilter] = useState("");
-  const [minReactions, setMinReactions] = useState(0);
-  
-  const [accounts, setAccounts] = useState<FBAccount[]>([]);
-  const [recentJobs, setRecentJobs] = useState<Job[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [launching, setLaunching] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchData = async () => {
+  const fetchStats = async () => {
     try {
-      const [jobsRes, accountsRes] = await Promise.all([
-        api.get("/api/jobs?limit=5"),
-        api.get("/api/config/fb-accounts")
-      ]);
-      setRecentJobs(jobsRes.data);
-      setAccounts(accountsRes.data);
-      if (accountsRes.data.length > 0) {
-        setSelectedAccount(accountsRes.data[0].id.toString());
-      }
+      const res = await api.get("/api/stats/dashboard");
+      setStats(res.data);
     } catch (err) {
-      console.error("Error fetching dashboard data", err);
+      console.error("Error fetching dashboard stats", err);
+      setError("Failed to load dashboard data. Please make sure the backend is running.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchStats();
   }, []);
 
-  const handleLaunch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!groupUrl) return;
-    setError("");
-    setLaunching(true);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4 text-primary">
+          <Activity className="w-8 h-8 animate-bounce" />
+          <p className="text-slate-500 font-semibold animate-pulse">Loading Analytics...</p>
+        </div>
+      </div>
+    );
+  }
 
-    try {
-      const payload = {
-        group_url: groupUrl,
-        max_posts: maxPosts,
-        include_comments: includeComments,
-        fb_account_id: selectedAccount ? parseInt(selectedAccount) : undefined,
-        since_date: sinceDate || undefined,
-        until_date: untilDate || undefined,
-        keyword_filter: keywordFilter || undefined,
-        min_reactions: minReactions || 0
-      };
-      const response = await api.post("/api/jobs", payload);
-      const newJob = response.data;
-      navigate(`/jobs/${newJob.id}`);
-    } catch (err: any) {
-      console.error(err);
-      setError(
-        err.response?.data?.detail || 
-        "Failed to launch job. Please verify your settings and account setup."
-      );
-    } finally {
-      setLaunching(false);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const base = "px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 w-fit";
-    switch (status) {
-      case "pending": return `${base} bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30`;
-      case "running": return `${base} bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30`;
-      case "completed": return `${base} bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30`;
-      case "failed": return `${base} bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30`;
-      case "stopped": return `${base} bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700`;
-      default: return `${base} bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400`;
-    }
-  };
-
-  // Compute stat totals
-  const totalJobsCount = recentJobs.length > 0 ? recentJobs.length : 0; // Simple fallback calculation
-  const activeJobsCount = recentJobs.filter(j => j.status === "running" || j.status === "pending").length;
-  const activeAccountsCount = accounts.filter(a => a.status === "valid").length;
+  if (error || !stats) {
+    return (
+      <div className="p-6 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl">
+        <h3 className="font-bold text-lg mb-2">Error Loading Dashboard</h3>
+        <p>{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       {/* Title */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Dashboard Overview</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">
-          Monitor scraping operations, check active runners, and compile reports.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Analytics Dashboard</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
+            System performance and scraping metrics at a glance.
+          </p>
+        </div>
+        <Link 
+          to="/overview"
+          className="px-5 py-2.5 bg-primary text-primary-foreground rounded-[10px] font-bold shadow-sm hover:opacity-90 transition flex items-center gap-2"
+        >
+          <TrendingUp className="w-4 h-4" />
+          New Job
+        </Link>
       </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="glass-card p-6 rounded-2xl flex items-center gap-5">
-          <div className="p-4 bg-violet-600/10 rounded-xl text-violet-600 dark:text-violet-400">
+        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex items-center gap-5">
+          <div className="p-4 bg-primary/10 rounded-xl text-primary">
             <Layers className="w-6 h-6" />
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Total Scrapes</p>
-            <h3 className="text-2xl font-bold mt-1">{totalJobsCount}</h3>
+            <h3 className="text-2xl font-bold mt-1">{stats.totalJobs}</h3>
           </div>
         </div>
 
-        <div className="glass-card p-6 rounded-2xl flex items-center gap-5">
-          <div className="p-4 bg-blue-600/10 rounded-xl text-blue-600 dark:text-blue-400">
+        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex items-center gap-5">
+          <div className="p-4 bg-info/10 rounded-xl text-info">
             <Activity className="w-6 h-6" />
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Active Jobs</p>
-            <h3 className="text-2xl font-bold mt-1">{activeJobsCount}</h3>
+            <h3 className="text-2xl font-bold mt-1">{stats.activeJobs}</h3>
           </div>
         </div>
 
-        <div className="glass-card p-6 rounded-2xl flex items-center gap-5">
-          <div className="p-4 bg-emerald-600/10 rounded-xl text-emerald-600 dark:text-emerald-400">
+        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex items-center gap-5">
+          <div className="p-4 bg-success/10 rounded-xl text-success">
             <Users className="w-6 h-6" />
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">FB Accounts</p>
-            <h3 className="text-2xl font-bold mt-1">{activeAccountsCount}/{accounts.length}</h3>
+            <h3 className="text-2xl font-bold mt-1">{stats.validAccounts} / {stats.totalAccounts} Valid</h3>
           </div>
         </div>
       </div>
 
-      {/* Main split section */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Launch New Job Card (3 cols) */}
-        <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 shadow-xl shadow-slate-100/50 dark:shadow-none rounded-2xl p-6 md:p-8 space-y-6">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-violet-600 dark:text-violet-400" />
-            <h2 className="text-xl font-bold">Quick Start Scraper</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Posts Timeline Chart */}
+        <div className="bg-card border border-border shadow-sm rounded-xl p-6 md:p-8">
+          <div className="flex items-center gap-2 mb-6">
+            <BarChart2 className="w-6 h-6 text-primary" />
+            <h2 className="text-xl font-bold">Posts Scraped (Last 7 Days)</h2>
           </div>
-
-          {error && (
-            <div className="p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 rounded-xl text-rose-600 dark:text-rose-400 text-sm font-medium">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleLaunch} className="space-y-6">
-            <div>
-              <label className="block text-sm font-bold mb-2">Facebook Group URL</label>
-              <input
-                type="url"
-                required
-                value={groupUrl}
-                onChange={(e) => setGroupUrl(e.target.value)}
-                placeholder="https://www.facebook.com/groups/your-group-name"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm"
-              />
-              <span className="text-xs text-slate-400 mt-1.5 block">
-                Supports public groups. For private groups, make sure valid cookies are saved in Settings.
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-bold mb-2">Max Posts to Scrape</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={maxPosts}
-                  onChange={(e) => setMaxPosts(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold mb-2">Facebook Account Session</label>
-                {accounts.length === 0 ? (
-                  <div className="py-3 px-4 bg-slate-50 dark:bg-slate-850 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-400 flex items-center justify-between">
-                    <span>No accounts found</span>
-                    <Link to="/settings" className="text-violet-600 hover:underline font-semibold">Add one</Link>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedAccount}
-                    onChange={(e) => setSelectedAccount(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm"
-                  >
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.email} ({acc.status})</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-
-            {/* Advanced Filters */}
-            <div className="border-t border-slate-100 dark:border-slate-800 pt-6 space-y-6">
-              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Advanced Filters</h4>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Since Date (Từ ngày)</label>
-                  <input
-                    type="date"
-                    value={sinceDate}
-                    onChange={(e) => setSinceDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm text-slate-600 dark:text-slate-300"
+          
+          <div className="h-72 w-full">
+            {stats.postsTimeline && stats.postsTimeline.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.postsTimeline} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#94a3b8" 
+                    fontSize={12}
+                    tickFormatter={(val) => {
+                      const d = new Date(val);
+                      return `${d.getDate()}/${d.getMonth()+1}`;
+                    }} 
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Until Date (Đến ngày)</label>
-                  <input
-                    type="date"
-                    value={untilDate}
-                    onChange={(e) => setUntilDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm text-slate-600 dark:text-slate-300"
+                  <YAxis stroke="#94a3b8" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Keyword Filter (Lọc từ khóa)</label>
-                  <input
-                    type="text"
-                    value={keywordFilter}
-                    onChange={(e) => setKeywordFilter(e.target.value)}
-                    placeholder="e.g. Python, AI, Off..."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm"
+                  <Line 
+                    type="monotone" 
+                    dataKey="posts" 
+                    stroke="var(--color-primary)" 
+                    strokeWidth={3}
+                    dot={{ fill: 'var(--color-primary)', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }} 
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Min Reactions (Tương tác tối thiểu)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={minReactions}
-                    onChange={(e) => setMinReactions(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-850 bg-transparent focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-500 focus:border-transparent outline-none transition text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 border-t border-slate-100 dark:border-slate-800 pt-6">
-              <input
-                id="comments"
-                type="checkbox"
-                checked={includeComments}
-                onChange={(e) => setIncludeComments(e.target.checked)}
-                className="w-4.5 h-4.5 rounded border-slate-300 dark:border-slate-800 text-violet-600 focus:ring-violet-500 focus:ring-offset-0"
-              />
-              <label htmlFor="comments" className="text-sm font-semibold select-none cursor-pointer">
-                Scrape comments (may increase scraping execution time)
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={launching || accounts.length === 0}
-              className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/10 hover:shadow-indigo-500/35 active:scale-[0.98] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
-            >
-              <Play className="w-5 h-5 fill-current" />
-              Launch Scraper Task
-            </button>
-          </form>
-        </div>
-
-        {/* Recent Jobs List (2 cols) */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/40 shadow-xl shadow-slate-100/50 dark:shadow-none rounded-2xl p-6 flex flex-col justify-between">
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Activity className="w-6 h-6 text-violet-600" />
-              Recent Jobs
-            </h2>
-
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
-                ))}
-              </div>
-            ) : recentJobs.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 dark:text-slate-500 text-sm">
-                No recent scrapers launched yet.
-              </div>
+                </LineChart>
+              </ResponsiveContainer>
             ) : (
-              <div className="space-y-4">
-                {recentJobs.map(job => (
-                  <Link 
-                    key={job.id} 
-                    to={`/jobs/${job.id}`}
-                    className="block p-4 border border-slate-150 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs text-slate-400 truncate max-w-[150px]" title={job.group_url}>
-                        {job.group_url.replace("https://www.facebook.com/groups/", "")}
-                      </span>
-                      {getStatusBadge(job.status)}
-                    </div>
-                    
-                    {job.status === "running" && (
-                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
-                        <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${job.progress}%` }} />
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-between items-center text-xs text-slate-400 mt-2 font-medium">
-                      <span>Limit: {job.max_posts} posts</span>
-                      <span>{new Date(job.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </Link>
-                ))}
+              <div className="h-full flex items-center justify-center text-slate-400">
+                No data available for the last 7 days.
               </div>
             )}
           </div>
-
-          {recentJobs.length > 0 && (
-            <Link 
-              to="/jobs" 
-              className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold text-violet-600 dark:text-violet-400 hover:underline"
-            >
-              See all jobs
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          )}
         </div>
+
+        {/* Job Status Distribution */}
+        <div className="bg-card border border-border shadow-sm rounded-xl p-6 md:p-8">
+          <div className="flex items-center gap-2 mb-6">
+            <PieChart className="w-6 h-6 text-success" />
+            <h2 className="text-xl font-bold">Jobs by Status</h2>
+          </div>
+          
+          <div className="h-72 w-full flex justify-center">
+            {stats.jobStatusDistribution && stats.jobStatusDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RePieChart>
+                  <Pie
+                    data={stats.jobStatusDistribution.map((entry, index) => ({
+                      ...entry,
+                      fill: COLORS[index % COLORS.length]
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                    iconType="circle"
+                    formatter={(value) => <span className="text-slate-600 dark:text-slate-300 font-semibold uppercase text-xs ml-1">{value}</span>}
+                  />
+                </RePieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-400">
+                No job data available.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex justify-center mt-4">
+        <Link 
+          to="/jobs" 
+          className="flex items-center gap-2 text-primary font-semibold hover:underline"
+        >
+          View detailed job history <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
     </div>
   );

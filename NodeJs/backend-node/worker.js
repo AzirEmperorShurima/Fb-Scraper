@@ -1,6 +1,6 @@
 import { redisClient } from "./redis.js";
-import { runScrapingProcess } from "./routes/jobs.js";
-import { runScriptProcess } from "./routes/scripts.js";
+import { runScrapingProcess } from "./services/scraperService.js";
+import { runScriptProcess } from "./services/scriptService.js";
 
 // Custom Queue API
 export const scraperQueue = {
@@ -20,13 +20,17 @@ const startWorkerLoop = async (workerId) => {
   console.log(`Khởi chạy Worker #${workerId}...`);
   while (true) {
     try {
-      // brPop sẽ block (chờ) cho đến khi có item mới trong danh sách 'scraperQueue'
-      // Timeout = 0 nghĩa là chờ vô hạn
-      const result = await redisClient.brPop("scraperQueue", 0);
+      if (!redisClient.isReady) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+
+      // Dùng rPop + polling thay vì brPop để không làm block (treo) redisClient dùng chung
+      const result = await redisClient.rPop("scraperQueue");
       
       if (result) {
-        // redis v4 trả về { key, element }
-        const job = JSON.parse(result.element);
+        // redis v4 rPop trả về string
+        const job = JSON.parse(result);
         console.log(`[Worker #${workerId}] Bắt đầu xử lý Job: ${job.name} (ID: ${job.id})`);
         
         try {
@@ -39,6 +43,9 @@ const startWorkerLoop = async (workerId) => {
         } catch (jobError) {
           console.error(`[Worker #${workerId}] Job ${job.id} bị lỗi:`, jobError);
         }
+      } else {
+        // Không có job, ngủ 2 giây rồi kiểm tra lại
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (err) {
       console.error(`[Worker #${workerId}] Lỗi kết nối Redis trong lúc lấy Job:`, err);
