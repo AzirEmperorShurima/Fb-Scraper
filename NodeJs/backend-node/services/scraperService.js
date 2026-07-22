@@ -1,4 +1,4 @@
-import { ScrapeJob, ScrapedPost, FBAccount } from "../models/index.js";
+import { ScrapeJob, ScrapedPost, FBAccount, SystemConfig } from "../models/index.js";
 import { scrapeFbGroup } from "../scraper/facebook.js";
 
 export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
@@ -31,6 +31,9 @@ export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
       const currentJob = await ScrapeJob.findById(jobId).select("status");
       return currentJob ? currentJob.status : "stopped";
     };
+
+    const config = await SystemConfig.findById("global_config");
+    const userDataDir = config?.chrome_user_data_dir || null;
 
     // Prepare list of accounts to try
     let accountsToTry = [];
@@ -73,7 +76,8 @@ export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
         keywordFilter: jobConfig.keyword_filter,
         minReactions: jobConfig.min_reactions,
         logCallback,
-        checkStatusCallback
+        checkStatusCallback,
+        userDataDir
       });
 
       const postsToInsert = posts.map(p => ({
@@ -120,7 +124,8 @@ export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
             keywordFilter: jobConfig.keyword_filter,
             minReactions: jobConfig.min_reactions,
             logCallback,
-            checkStatusCallback
+            checkStatusCallback,
+            userDataDir
           });
 
           const postsToInsert = posts.map(p => ({

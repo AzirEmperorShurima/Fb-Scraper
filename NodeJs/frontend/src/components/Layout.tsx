@@ -11,7 +11,8 @@ import {
   Menu, 
   X,
   Server,
-  Users
+  Users,
+  Terminal
 } from "lucide-react";
 
 const Facebook: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -60,6 +61,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: "Scrape Jobs", path: "/jobs", icon: Server },
     { name: "Campaigns", path: "/scripts", icon: Server },
     { name: "Accounts", path: "/accounts", icon: Users },
+    { name: "Test Console", path: "/console", icon: Terminal },
     { name: "Settings", path: "/settings", icon: Settings },
   ];
 

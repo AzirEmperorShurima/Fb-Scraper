@@ -11,6 +11,7 @@ import { Accounts } from "./pages/Accounts";
 import { Scripts } from "./pages/Scripts";
 import { ScriptExecutionDetailsPage } from "./pages/ScriptExecutionDetailsPage";
 import { Overview } from "./pages/Overview";
+import { TestConsole } from "./pages/TestConsole";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // Google Provider - reads Client ID from .env (VITE_GOOGLE_CLIENT_ID)
@@ -130,6 +131,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ScriptExecutionDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/console"
+              element={
+                <ProtectedRoute>
+                  <TestConsole />
                 </ProtectedRoute>
               }
             />

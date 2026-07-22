@@ -331,7 +331,10 @@ export const verifyStatus = async (req, res) => {
         let cookies = [];
         try { cookies = typeof cookiesStr === "string" ? JSON.parse(cookiesStr) : cookiesStr; } catch (e) {}
 
-        const results = await verifyPostsStatus(postUrls, cookies);
+        let config = await SystemConfig.findById("global_config");
+        const userDataDir = config?.chrome_user_data_dir || null;
+
+        const results = await verifyPostsStatus(postUrls, cookies, userDataDir);
         
         // Update DB
         for (const post of posts) {

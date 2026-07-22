@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { ScriptExecution, ScrapeJob, ScrapedPost, FBAccount } from "../models/index.js";
+import { ScriptExecution, ScrapeJob, ScrapedPost, FBAccount, SystemConfig } from "../models/index.js";
 import { scrapeFbGroup } from "../scraper/facebook.js";
 
 export const runScriptProcess = async (executionId, script, fbAccountIds) => {
@@ -13,6 +13,9 @@ export const runScriptProcess = async (executionId, script, fbAccountIds) => {
       }
     } catch (e) {}
   };
+
+  const config = await SystemConfig.findById("global_config");
+  const userDataDir = config?.chrome_user_data_dir || null;
 
   try {
     let accountsToTry = [];
@@ -90,7 +93,8 @@ export const runScriptProcess = async (executionId, script, fbAccountIds) => {
             checkStatusCallback: async () => {
               const j = await ScrapeJob.findById(jobId);
               return j ? j.status : "stopped";
-            }
+            },
+            userDataDir
           });
 
           const postsToInsert = posts.map(p => ({

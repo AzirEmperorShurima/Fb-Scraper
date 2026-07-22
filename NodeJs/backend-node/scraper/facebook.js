@@ -82,7 +82,8 @@ export async function scrapeFbGroup({
   keywordFilter = null,
   minReactions = 0,
   logCallback = null,
-  checkStatusCallback = null
+  checkStatusCallback = null,
+  userDataDir = null
 }) {
   const logMsg = (msg) => {
     console.log(msg);
@@ -94,31 +95,58 @@ export async function scrapeFbGroup({
   const proxy = getRandomProxy();
   if (proxy) logMsg(`🌐 Sử dụng Proxy: ${proxy.server}`);
 
-  const browser = await chromium.launch({
-    headless: false,
-    proxy: proxy ? { server: proxy.server, username: proxy.username, password: proxy.password } : undefined,
-    args: [
-      "--disable-notifications",
-      "--disable-blink-features=AutomationControlled",
-      "--no-sandbox",
-      "--disable-setuid-sandbox"
-    ]
-  });
+  const proxyConfig = proxy ? { server: proxy.server, username: proxy.username, password: proxy.password } : undefined;
+
+  let browser;
+  let context;
 
   const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
   const timezones = ['Asia/Ho_Chi_Minh', 'Asia/Bangkok', 'Asia/Jakarta'];
-  
-  const context = await browser.newContext({
-    userAgent,
-    viewport: { 
-      width: 1280 + Math.floor(Math.random() * 200 - 100), 
-      height: 800 + Math.floor(Math.random() * 200 - 100) 
-    },
-    timezoneId: timezones[Math.floor(Math.random() * timezones.length)],
-    locale: 'vi-VN'
-  });
+  const timezoneId = timezones[Math.floor(Math.random() * timezones.length)];
 
-  if (cookies && cookies.length > 0) {
+  if (userDataDir) {
+    logMsg(`🚀 Khởi chạy Real Chrome Profile từ: ${userDataDir}`);
+    context = await chromium.launchPersistentContext(userDataDir, {
+      headless: false,
+      proxy: proxyConfig,
+      args: [
+        "--disable-notifications",
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-setuid-sandbox"
+      ],
+      userAgent,
+      viewport: { 
+        width: 1280 + Math.floor(Math.random() * 200 - 100), 
+        height: 800 + Math.floor(Math.random() * 200 - 100) 
+      },
+      timezoneId,
+      locale: 'vi-VN'
+    });
+  } else {
+    browser = await chromium.launch({
+      headless: false,
+      proxy: proxyConfig,
+      args: [
+        "--disable-notifications",
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-setuid-sandbox"
+      ]
+    });
+
+    context = await browser.newContext({
+      userAgent,
+      viewport: { 
+        width: 1280 + Math.floor(Math.random() * 200 - 100), 
+        height: 800 + Math.floor(Math.random() * 200 - 100) 
+      },
+      timezoneId,
+      locale: 'vi-VN'
+    });
+  }
+
+  if (!userDataDir && cookies && cookies.length > 0) {
     logMsg("🔑 Đang nạp cookies phiên hoạt động...");
     const sanitizedCookies = cookies.map(c => {
       let sameSite = c.sameSite;
@@ -149,7 +177,7 @@ export async function scrapeFbGroup({
     }
   }
 
-  const page = await context.newPage();
+  const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
   let newCookies = [];
 
   try {
@@ -487,8 +515,8 @@ export async function scrapeFbGroup({
     logMsg(`💥 Lỗi trong lúc cào bằng Playwright: ${error.message}`);
     throw error;
   } finally {
-    await context.close();
-    await browser.close();
+    if (context) await context.close();
+    if (browser) await browser.close();
   }
 }
 
@@ -502,19 +530,29 @@ function hashCode(str) {
   return hash;
 }
 
-export async function verifyPostsStatus(postUrls, cookies = null) {
+export async function verifyPostsStatus(postUrls, cookies = null, userDataDir = null) {
   console.log(`🔍 Bắt đầu kiểm tra trạng thái ${postUrls.length} bài viết...`);
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--disable-notifications", "--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-setuid-sandbox"]
-  });
+  
+  let browser;
+  let context;
 
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  if (cookies && cookies.length > 0) {
-    await context.addCookies(cookies);
+  if (userDataDir) {
+    context = await chromium.launchPersistentContext(userDataDir, {
+      headless: true,
+      args: ["--disable-notifications", "--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-setuid-sandbox"]
+    });
+  } else {
+    browser = await chromium.launch({
+      headless: true,
+      args: ["--disable-notifications", "--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-setuid-sandbox"]
+    });
+    context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    if (cookies && cookies.length > 0) {
+      await context.addCookies(cookies);
+    }
   }
 
-  const page = await context.newPage();
+  const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
   const results = {};
 
   for (const url of postUrls) {
@@ -541,7 +579,7 @@ export async function verifyPostsStatus(postUrls, cookies = null) {
     }
   }
 
-  await context.close();
-  await browser.close();
+  if (context) await context.close();
+  if (browser) await browser.close();
   return results;
 }
