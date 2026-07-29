@@ -1,0 +1,10 @@
+{
+  "name": "fbscraper-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "docker-compose -f docker-compose.frontend.yml up --build",
+    "dev:node": "docker-compose -f docker-compose.node.yml up --build",
+    "dev:python": "docker-compose -f docker-compose.python.yml up --build"
+  }
+}

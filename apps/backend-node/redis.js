@@ -4,10 +4,10 @@ dotenv.config();
 
 const redisConfig = {
   username: process.env.REDIS_USERNAME || 'default',
-  password: process.env.REDIS_PASSWORD || 'u1QxZM2X34diXL1GBD8Q1ddDBdoOxrLY',
+  password: process.env.REDIS_PASSWORD || '',
   socket: {
-    host: process.env.REDIS_HOST || 'redis-10045.crce178.ap-east-1-1.ec2.cloud.redislabs.com',
-    port: parseInt(process.env.REDIS_PORT || '10045', 10)
+    host: process.env.REDIS_HOST || '',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10)
   }
 };
 

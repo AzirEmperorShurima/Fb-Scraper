@@ -160,3 +160,4 @@ temp/
 chrome-extension/env.js
 chrome-extension/dist.pem
 chrome-extension/dist.crx
+docker-compose.yml
