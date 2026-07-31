@@ -107,7 +107,7 @@ export const pauseJob = async (req, res) => {
     if (!job) return res.status(404).json({ detail: "Job not found" });
     if (job.user_id && job.user_id.toString() !== req.user.id) return res.status(403).json({ detail: "Not authorized" });
 
-    if (job.status !== "running") return res.status(400).json({ message: `Cannot pause job in ${job.status} state` });
+    if (job.status !== "running" && job.status !== "pending") return res.status(400).json({ message: `Cannot pause job in ${job.status} state` });
 
     job.status = "paused";
     await job.save();

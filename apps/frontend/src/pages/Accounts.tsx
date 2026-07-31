@@ -10,7 +10,8 @@ import {
   Loader2,
   Edit2,
   Activity,
-  X
+  X,
+  RefreshCw
 } from "lucide-react";
 
 interface FBAccount {
@@ -33,6 +34,8 @@ export const Accounts: React.FC = () => {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [checkingAll, setCheckingAll] = useState(false);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
 
   const fetchAccounts = async () => {
     try {
@@ -124,6 +127,32 @@ export const Accounts: React.FC = () => {
     }
   };
 
+  const handleCheckCookie = async (id: string) => {
+    setCheckingId(id);
+    try {
+      await api.post(`/api/config/fb-accounts/${id}/check`);
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Check cookie error", err);
+      alert("Failed to check cookie.");
+    } finally {
+      setCheckingId(null);
+    }
+  };
+
+  const handleCheckAllCookies = async () => {
+    setCheckingAll(true);
+    try {
+      await api.post(`/api/config/fb-accounts/check-all`);
+      await fetchAccounts();
+    } catch (err) {
+      console.error("Check all cookies error", err);
+      alert("Failed to check cookies.");
+    } finally {
+      setCheckingAll(false);
+    }
+  };
+
   const getStatusIndicator = (status: string) => {
     switch (status) {
       case "valid":
@@ -157,13 +186,23 @@ export const Accounts: React.FC = () => {
             Manage your rotating pool of Facebook accounts for scraping operations.
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-6 py-3 bg-primary text-primary-foreground rounded-[10px] font-bold shadow-sm hover:opacity-90 active:scale-95 transition flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          Add Account
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleCheckAllCookies}
+            disabled={checkingAll}
+            className="px-4 py-3 bg-secondary text-secondary-foreground rounded-[10px] font-bold shadow-sm hover:opacity-90 active:scale-95 transition flex items-center gap-2 disabled:opacity-50"
+          >
+            {checkingAll ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+            Check All Cookies
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-[10px] font-bold shadow-sm hover:opacity-90 active:scale-95 transition flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Add Account
+          </button>
+        </div>
       </div>
 
       {/* Grid of Accounts */}
@@ -225,6 +264,13 @@ export const Accounts: React.FC = () => {
                     </td>
                     <td className="p-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleCheckCookie(acc.id)}
+                          disabled={checkingId === acc.id}
+                          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {checkingId === acc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Check
+                        </button>
                         <button
                           onClick={() => handleOpenModal(acc)}
                           className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-semibold transition flex items-center gap-1.5"
