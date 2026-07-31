@@ -21,6 +21,8 @@ export const Overview: React.FC = () => {
   const [untilDate, setUntilDate] = useState("");
   const [keywordFilter, setKeywordFilter] = useState("");
   const [minReactions, setMinReactions] = useState(0);
+  const [sortOrder, setSortOrder] = useState("RECENT_ACTIVITY");
+  const [requireMedia, setRequireMedia] = useState(false);
   const [customCookies, setCustomCookies] = useState("");
   
   const [accounts, setAccounts] = useState<FBAccount[]>([]);
@@ -59,6 +61,8 @@ export const Overview: React.FC = () => {
         until_date: untilDate || undefined,
         keyword_filter: keywordFilter || undefined,
         min_reactions: minReactions || 0,
+        sort_order: sortOrder,
+        require_media: requireMedia,
         custom_cookies: selectedAccounts.includes("custom") && customCookies ? customCookies : undefined
       };
       const response = await api.post("/api/jobs", payload);
@@ -274,6 +278,35 @@ export const Overview: React.FC = () => {
                     onChange={(e) => setMinReactions(parseInt(e.target.value) || 0)}
                     className="w-full px-4 py-3 rounded-lg border border-border bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold mb-2">Sort Order (Thứ tự quét)</label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-transparent focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition text-sm text-slate-600 dark:text-slate-300"
+                  >
+                    <option value="RECENT_ACTIVITY">Recent Activity (Mặc định)</option>
+                    <option value="CHRONOLOGICAL">Newest Posts (Bài mới nhất)</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col justify-end pb-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="require_media"
+                      type="checkbox"
+                      checked={requireMedia}
+                      onChange={(e) => setRequireMedia(e.target.checked)}
+                      className="w-4.5 h-4.5 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
+                    />
+                    <label htmlFor="require_media" className="text-sm font-semibold select-none cursor-pointer">
+                      Chỉ lấy bài có Hình ảnh / Video
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

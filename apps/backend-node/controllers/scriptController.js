@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { CrawlerScript, ScriptExecution, ScrapeJob, ScrapedPost, FBAccount } from "../models/index.js";
-import { scraperQueue } from "../worker.js";
+import { scraperQueue } from "../queue/scraperQueue.js";
 
 export const createScript = async (req, res) => {
   try {

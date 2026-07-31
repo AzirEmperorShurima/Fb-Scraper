@@ -16,6 +16,8 @@ const ScrapeJobSchema = new mongoose.Schema({
   until_date: { type: Date },
   keyword_filter: { type: String },
   min_reactions: { type: Number, default: 0 },
+  sort_order: { type: String, default: "RECENT_ACTIVITY" },
+  require_media: { type: Boolean, default: false },
   logs: { type: String, default: "" },
   custom_cookies: { type: mongoose.Schema.Types.Mixed, default: null },
   fb_account_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FBAccount' }],

@@ -11,7 +11,9 @@ const CrawlerScriptSchema = new mongoose.Schema({
     group_url: { type: String, required: true },
     max_posts: { type: Number, default: 50 },
     keyword_filter: { type: String },
-    min_reactions: { type: Number, default: 0 }
+    min_reactions: { type: Number, default: 0 },
+    sort_order: { type: String, default: "RECENT_ACTIVITY" },
+    require_media: { type: Boolean, default: false }
   }],
   since_date: { type: Date },
   until_date: { type: Date },

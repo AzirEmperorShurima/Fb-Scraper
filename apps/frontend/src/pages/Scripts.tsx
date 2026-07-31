@@ -9,6 +9,8 @@ interface ScriptStep {
   max_posts: number;
   keyword_filter?: string;
   min_reactions?: number;
+  sort_order?: string;
+  require_media?: boolean;
 }
 
 interface FBAccount {
@@ -50,7 +52,7 @@ export const Scripts: React.FC = () => {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newSteps, setNewSteps] = useState<ScriptStep[]>([
-    { step_order: 1, group_url: "", max_posts: 50 }
+    { step_order: 1, group_url: "", max_posts: 50, sort_order: "RECENT_ACTIVITY", require_media: false }
   ]);
 
   const [saving, setSaving] = useState(false);
@@ -101,7 +103,7 @@ export const Scripts: React.FC = () => {
   }, []);
 
   const handleAddStep = () => {
-    setNewSteps([...newSteps, { step_order: newSteps.length + 1, group_url: "", max_posts: 50 }]);
+    setNewSteps([...newSteps, { step_order: newSteps.length + 1, group_url: "", max_posts: 50, sort_order: "RECENT_ACTIVITY", require_media: false }]);
   };
 
   const handleRemoveStep = (index: number) => {
@@ -121,7 +123,7 @@ export const Scripts: React.FC = () => {
     setEditScriptId(null);
     setNewName("");
     setNewDesc("");
-    setNewSteps([{ step_order: 1, group_url: "", max_posts: 50 }]);
+    setNewSteps([{ step_order: 1, group_url: "", max_posts: 50, sort_order: "RECENT_ACTIVITY", require_media: false }]);
     setIsCreating(true);
   };
 
@@ -384,10 +386,32 @@ export const Scripts: React.FC = () => {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                   />
                 </div>
+                <div className="w-full md:w-40 flex flex-col gap-2">
+                  <div>
+                    <label className="block text-xs font-bold mb-1 text-slate-500">Sort Order</label>
+                    <select
+                      value={step.sort_order || "RECENT_ACTIVITY"}
+                      onChange={e => handleStepChange(index, "sort_order", e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-card text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                    >
+                      <option value="RECENT_ACTIVITY">Recent</option>
+                      <option value="CHRONOLOGICAL">Newest</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      checked={!!step.require_media}
+                      onChange={e => handleStepChange(index, "require_media", e.target.checked)}
+                      className="rounded text-primary focus:ring-primary w-3.5 h-3.5"
+                    />
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Media Only</label>
+                  </div>
+                </div>
                 <button
                   onClick={() => handleRemoveStep(index)}
                   disabled={newSteps.length === 1}
-                  className="p-2 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition disabled:opacity-50"
+                  className="p-2 mb-1 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition disabled:opacity-50"
                   title="Remove Step"
                 >
                   <Trash2 className="w-5 h-5" />

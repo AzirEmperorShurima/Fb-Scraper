@@ -1,53 +1,13 @@
-import express from "express";
 import http from "http";
-import cors from "cors";
-import helmet from "helmet";
-import morgan from "morgan";
 import { WebSocketServer } from "ws";
-import dotenv from "dotenv";
+import { config } from "./config/env.js";
 import { initDatabase } from "./database.js";
-import { User, ScrapeJob, ScriptExecution } from "./models/index.js";
-import { SECRET_KEY, authenticateToken } from "./middleware/auth.js";
-import { redisSub } from "./redis.js";
-import "./worker.js";
+import app from "./app.js";
+import { handleJobProgressWebSocket } from "./websockets/jobProgress.js";
+import "./queue/scraperWorker.js"; // Initialize BullMQ workers
 
-import authRouter from "./routes/auth.js";
-import configRouter from "./routes/config.js";
-import jobsRouter from "./routes/jobs.js";
-import exportsRouter from "./routes/exports.js";
-import analyticsRouter from "./routes/analytics.js";
-import googleAuthRouter from "./routes/googleAuth.js";
-import sheetsRouter from "./routes/sheets.js";
-import statsRouter from "./routes/stats.js";
-
-dotenv.config();
-
-const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 8080;
-app.use(helmet());
-app.use(morgan("dev"));
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-app.get("/", (req, res) => {
-  res.json({ message: "FBGroupScraper Pro Node.js Fallback API is running" });
-});
-
-import scriptsRouter from "./routes/scripts.js";
-import systemConfigRouter from "./routes/systemConfig.js";
-
-app.use("/api/auth", authRouter);
-app.use("/api/auth/google", googleAuthRouter);
-app.use("/api/config", systemConfigRouter);
-app.use("/api/config/fb-accounts", configRouter);
-app.use("/api/jobs", jobsRouter);
-app.use("/api/jobs", exportsRouter);
-app.use("/api/jobs", analyticsRouter);
-app.use("/api/stats", statsRouter);
-app.use("/api/sheets", sheetsRouter);
-app.use("/api/scripts", scriptsRouter);
+const PORT = config.PORT;
 
 const wss = new WebSocketServer({ noServer: true });
 
@@ -64,57 +24,13 @@ server.on("upgrade", (request, socket, head) => {
   }
 });
 
-wss.on("connection", async (ws, request, jobId) => {
-  console.log(`WebSocket client subscribed to job progress: ${jobId}`);
-  
-  let job = await ScrapeJob.findById(jobId);
-  let isExecution = false;
-  if (!job) {
-    job = await ScriptExecution.findById(jobId);
-    isExecution = true;
-  }
-  
-  if (!job) {
-    ws.send(JSON.stringify({ error: "Job/Execution not found" }));
-    ws.close();
-    return;
-  }
-
-  // Gửi trạng thái ban đầu
-  ws.send(JSON.stringify({
-    job_id: job.id,
-    status: job.status,
-    progress: job.progress,
-    error_message: job.error_message,
-    completed_at: job.completed_at ? job.completed_at.toISOString() : null,
-    logs: job.logs || ""
-  }));
-
-  const channel = `job_progress:${jobId}`;
-  
-  const messageHandler = (message) => {
-    try {
-      const data = JSON.parse(message);
-      ws.send(message);
-      if (["completed", "failed", "stopped"].includes(data.status)) {
-        redisSub.unsubscribe(channel, messageHandler).catch(console.error);
-        ws.close();
-      }
-    } catch (err) {}
-  };
-
-  redisSub.subscribe(channel, messageHandler).catch(console.error);
-
-  ws.on("close", () => {
-    redisSub.unsubscribe(channel, messageHandler).catch(console.error);
-  });
-});
+wss.on("connection", handleJobProgressWebSocket);
 
 const startServer = async () => {
   try {
     await initDatabase();
     server.listen(PORT, () => {
-      console.log(`Node.js Fallback Backend running on port ${PORT}`);
+      console.log(`Node.js Backend running in ${config.NODE_ENV} mode on port ${PORT}`);
     });
   } catch (err) {
     console.error("Failed to start Node.js server database:", err);

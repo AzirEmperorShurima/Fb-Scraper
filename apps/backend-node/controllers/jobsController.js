@@ -1,11 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 import { ScrapeJob, ScrapedPost, FBAccount, SystemConfig } from "../models/index.js";
-import { scraperQueue } from "../worker.js";
+import { scraperQueue } from "../queue/scraperQueue.js";
 import { redisClient } from "../redis.js";
 import { verifyPostsStatus } from "../scraper/facebook.js";
 
 export const createJob = async (req, res) => {
-  const { group_url, max_posts, include_comments, since_date, until_date, keyword_filter, min_reactions, fb_account_ids, custom_cookies } = req.body;
+  const { group_url, max_posts, include_comments, since_date, until_date, keyword_filter, min_reactions, sort_order, require_media, fb_account_ids, custom_cookies } = req.body;
   if (!group_url) {
     return res.status(400).json({ detail: "Facebook Group URL is required" });
   }
@@ -30,6 +30,8 @@ export const createJob = async (req, res) => {
       until_date: until_date ? new Date(until_date) : null,
       keyword_filter: keyword_filter || null,
       min_reactions: min_reactions ? parseInt(min_reactions) : 0,
+      sort_order: sort_order || "RECENT_ACTIVITY",
+      require_media: !!require_media,
       fb_account_ids: fb_account_ids || [],
       custom_cookies: custom_cookies || null,
       logs: `[${new Date().toISOString().replace('T', ' ').substring(0, 19)}] ⏳ Đang khởi tạo hàng chờ cào nhóm...\n`,
@@ -158,15 +160,11 @@ export const restartJob = async (req, res) => {
     job.completed_at = null;
     await job.save();
 
-    await redisClient.lPush("scraperQueue", JSON.stringify({
-      id: Date.now().toString(),
-      name: "scrapeJob",
-      data: {
-        jobId: job._id.toString(),
-        maxPosts: job.max_posts,
-        fbAccountId: null
-      }
-    }));
+    await scraperQueue.add("scrapeJob", {
+      jobId: job._id.toString(),
+      maxPosts: job.max_posts,
+      fbAccountId: null
+    });
 
     res.json({ message: "Job restarted successfully" });
   } catch (err) {

@@ -1,15 +1,15 @@
 import { ScrapeJob, ScrapedPost, FBAccount, SystemConfig } from "../models/index.js";
 import { scrapeFbGroup } from "../scraper/facebook.js";
+import { runWithAccountRotation } from "./accountRotator.js";
 
 export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
   const appendLog = async (msg) => {
     try {
-      const job = await ScrapeJob.findById(jobId);
-      if (job) {
-        const timestampStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-        job.logs = (job.logs || "") + `[${timestampStr}] ${msg}\n`;
-        await job.save();
-      }
+      const timestampStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const logLine = `[${timestampStr}] ${msg}\n`;
+      await ScrapeJob.findByIdAndUpdate(jobId, [
+        { $set: { logs: { $concat: [ { $ifNull: ["$logs", ""] }, logLine ] } } }
+      ]);
     } catch (e) {
       console.error("Failed to write log:", e);
     }
@@ -34,53 +34,37 @@ export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
 
     const config = await SystemConfig.findById("global_config");
     const userDataDir = config?.chrome_user_data_dir || null;
+    const webrtcDefense = config?.webrtc_defense !== false;
+    const realIpDefense = config?.real_ip_defense !== false;
+    const proxies = config?.proxies || [];
 
-    // Prepare list of accounts to try
-    let accountsToTry = [];
-    if (fbAccountIds && Array.isArray(fbAccountIds) && fbAccountIds.length > 0) {
-      for (const id of fbAccountIds) {
-        const acc = await FBAccount.findById(id);
-        if (acc) accountsToTry.push(acc);
-      }
-    }
-
-    let scrapingSuccess = false;
-    let lastError = null;
-
-    if (accountsToTry.length === 0 && !jobConfig.custom_cookies) {
-      // Fallback
-      const acc = await FBAccount.findOne({ status: "valid" });
-      if (acc) accountsToTry.push(acc);
-    }
-
-    if (accountsToTry.length === 0 && !jobConfig.custom_cookies) {
-      throw new Error("No Facebook accounts or custom cookies available to run the job.");
-    }
-
-    if (jobConfig.custom_cookies && accountsToTry.length === 0) {
-      let cookies = [];
-      try {
-        cookies = typeof jobConfig.custom_cookies === "string" ? JSON.parse(jobConfig.custom_cookies) : jobConfig.custom_cookies;
-      } catch (e) {}
-
-      await appendLog(`🔄 Bắt đầu cào bằng Custom Cookies...`);
-      const { posts, cookies: newCookies } = await scrapeFbGroup({
+    const task = async (account, cookies) => {
+      return await scrapeFbGroup({
         groupUrl: jobConfig.group_url,
         maxPosts,
         cookies,
-        email: null,
-        password: null,
+        email: account ? account.email : null,
+        password: account ? account.password : null,
         progressCallback,
         sinceDate: jobConfig.since_date,
         untilDate: jobConfig.until_date,
         keywordFilter: jobConfig.keyword_filter,
         minReactions: jobConfig.min_reactions,
+        sortOrder: jobConfig.sort_order,
+        requireMedia: jobConfig.require_media,
         logCallback,
         checkStatusCallback,
-        userDataDir
+        userDataDir,
+        webrtcDefense,
+        realIpDefense,
+        proxies
       });
+    };
 
-      const postsToInsert = posts.map(p => ({
+    const { result } = await runWithAccountRotation(fbAccountIds, jobConfig.custom_cookies, appendLog, task);
+    
+    if (result && result.posts) {
+      const postsToInsert = result.posts.map(p => ({
         job_id: jobId,
         job_version: jobConfig.version || 1,
         post_id: p.post_id,
@@ -100,80 +84,6 @@ export const runScrapingProcess = async (jobId, maxPosts, fbAccountIds) => {
       if (postsToInsert.length > 0) {
         await ScrapedPost.insertMany(postsToInsert);
       }
-      scrapingSuccess = true;
-    } else {
-      for (let i = 0; i < accountsToTry.length; i++) {
-        const account = accountsToTry[i];
-        let cookies = [];
-        try {
-          cookies = typeof account.cookies_json === "string" ? JSON.parse(account.cookies_json) : account.cookies_json;
-        } catch (e) {}
-
-        await appendLog(`🔄 Đang thử cào với tài khoản: ${account.email} (${i+1}/${accountsToTry.length})`);
-
-        try {
-          const { posts, cookies: newCookies } = await scrapeFbGroup({
-            groupUrl: jobConfig.group_url,
-            maxPosts,
-            cookies,
-            email: account.email,
-            password: account.password,
-            progressCallback,
-            sinceDate: jobConfig.since_date,
-            untilDate: jobConfig.until_date,
-            keywordFilter: jobConfig.keyword_filter,
-            minReactions: jobConfig.min_reactions,
-            logCallback,
-            checkStatusCallback,
-            userDataDir
-          });
-
-          const postsToInsert = posts.map(p => ({
-            job_id: jobId,
-            job_version: jobConfig.version || 1,
-            post_id: p.post_id,
-            author_name: p.author_name,
-            author_url: p.author_url,
-            author_avatar_url: p.author_avatar_url,
-            post_url: p.post_url,
-            is_deleted: p.is_deleted,
-            text: p.text,
-            timestamp: p.timestamp,
-            reactions_json: p.reactions_json,
-            comments_count: p.comments_count,
-            comments_json: p.comments_json,
-            attachments_json: p.attachments_json
-          }));
-
-          if (postsToInsert.length > 0) {
-            await ScrapedPost.insertMany(postsToInsert);
-          }
-
-          if (newCookies && newCookies.length > 0) {
-            account.cookies_json = newCookies;
-          }
-          account.status = "valid";
-          account.last_used = new Date();
-          account.success_count = (account.success_count || 0) + 1;
-          await account.save();
-          
-          scrapingSuccess = true;
-          break; // Success!
-        } catch (err) {
-          lastError = err;
-          await appendLog(`❌ Lỗi với tài khoản ${account.email}: ${err.message}`);
-          account.fail_count = (account.fail_count || 0) + 1;
-          await account.save();
-
-          if (i < accountsToTry.length - 1) {
-             await appendLog(`➡️ Chuyển sang tài khoản dự phòng tiếp theo...`);
-          }
-        }
-      }
-    }
-
-    if (!scrapingSuccess) {
-      throw lastError || new Error("Quá trình cào thất bại trên tất cả các tài khoản dự phòng.");
     }
 
     const finalJobCheck = await ScrapeJob.findById(jobId).select("status");
